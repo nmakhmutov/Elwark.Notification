@@ -2,24 +2,36 @@ package com.elwark.notification
 
 import com.elwark.notification.api.emailEndpoints
 import com.elwark.notification.db.MongoDbContext
-import com.elwark.notification.email.EmailProviders
-import com.elwark.notification.db.ProviderBalanceModel
-import io.ktor.application.*
-import io.ktor.response.*
-import io.ktor.routing.*
-import io.ktor.http.*
-import io.ktor.auth.*
-import io.ktor.features.*
-import io.ktor.client.*
-import io.ktor.client.engine.cio.*
-import io.ktor.client.features.auth.*
-import io.ktor.client.features.json.*
-import kotlinx.coroutines.*
-import io.ktor.client.features.logging.*
+import com.elwark.notification.email.EmailService
+import io.ktor.application.Application
+import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.application.log
+import io.ktor.auth.Authentication
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
 import io.ktor.client.features.BrowserUserAgent
+import io.ktor.client.features.auth.Auth
+import io.ktor.client.features.json.JacksonSerializer
+import io.ktor.client.features.json.JsonFeature
+import io.ktor.client.features.logging.LogLevel
+import io.ktor.client.features.logging.Logging
+import io.ktor.features.CallLogging
+import io.ktor.features.ContentNegotiation
+import io.ktor.features.DataConversion
+import io.ktor.features.StatusPages
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
+import io.ktor.request.path
+import io.ktor.response.respond
+import io.ktor.response.respondText
+import io.ktor.routing.Routing
+import io.ktor.routing.get
+import io.ktor.routing.routing
 import io.ktor.util.KtorExperimentalAPI
-import org.litote.kmongo.eq
+import kotlinx.coroutines.runBlocking
+import org.slf4j.event.Level
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -42,10 +54,9 @@ fun Application.module(testing: Boolean = false) {
 
     val mongo = environment.config.config("mongodb")
     val dbContext = MongoDbContext(mongo.property("connection").getString(), mongo.property("db").getString())
+    val emailService = EmailService(dbContext)
 
     runBlocking {
-        val provider = dbContext.emailProviders.findOne(ProviderBalanceModel::provider eq EmailProviders.Mailjet)
-        println("------------------------------- ${provider?.lastUsedAt}")
         // Sample for making a HTTP Client request
         /*
         val message = client.post<JsonSampleClass> {
@@ -64,9 +75,14 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
+    install(CallLogging) {
+        level = Level.INFO
+        filter { call -> call.request.path().startsWith("/") }
+    }
+
     install(Routing) {
         trace { application.log.trace(it.buildText()) }
-        emailEndpoints()
+        emailEndpoints(emailService)
     }
 
     install(StatusPages) {

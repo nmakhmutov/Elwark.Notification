@@ -4,9 +4,10 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer
 import java.time.LocalDateTime
 
-data class ProviderBalanceResponse(
+data class ProviderBalanceDto(
     val provider: EmailProviders,
-    val count: Int,
+    val dailyLimit: Int,
+    val balance: Int,
     @JsonSerialize(using = ToStringSerializer::class)
     val lastUsedAt: LocalDateTime
 )
