@@ -12,8 +12,9 @@ class EmailService(private val dbContext: MongoDbContext) {
     }
 
     suspend fun updateDailyLimit(provider: EmailProviders, limit: Int) {
-        var updated: Long
-        do {
+        var isUpdated = false
+
+        while (!isUpdated) {
             val db = dbContext.emailProviders.findOne(EmailProviderModel::name eq provider)
                 ?: return
 
@@ -24,12 +25,11 @@ class EmailService(private val dbContext: MongoDbContext) {
                 } else {
                     tmp
                 }
-            }
-            else {
+            } else {
                 db.balance + (limit - db.dailyLimit)
             }
 
-            updated = dbContext.emailProviders.updateOne(
+            val result = dbContext.emailProviders.updateOne(
                 and(
                     EmailProviderModel::name eq provider,
                     EmailProviderModel::version eq db.version
@@ -39,8 +39,9 @@ class EmailService(private val dbContext: MongoDbContext) {
                     setValue(EmailProviderModel::balance, balance),
                     inc(EmailProviderModel::version, 1)
                 )
-            ).modifiedCount
+            )
 
-        } while (updated == 0L)
+            isUpdated = result.modifiedCount > 0
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.elwark.notification
 
+import com.auth0.jwk.JwkProviderBuilder
 import com.elwark.notification.api.emailEndpoints
 import com.elwark.notification.db.MongoDbContext
 import com.elwark.notification.email.EmailService
@@ -8,6 +9,8 @@ import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.application.log
 import io.ktor.auth.Authentication
+import io.ktor.auth.jwt.JWTPrincipal
+import io.ktor.auth.jwt.jwt
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.features.BrowserUserAgent
@@ -18,10 +21,10 @@ import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logging
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
-import io.ktor.features.DataConversion
 import io.ktor.features.StatusPages
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.URLBuilder
 import io.ktor.jackson.jackson
 import io.ktor.request.path
 import io.ktor.response.respond
@@ -32,6 +35,8 @@ import io.ktor.routing.routing
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.runBlocking
 import org.slf4j.event.Level
+import java.net.URL
+import java.util.concurrent.TimeUnit
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -67,7 +72,23 @@ fun Application.module(testing: Boolean = false) {
         */
     }
 
+    val jwkIssuer = environment.config.property("jwk.issuer").getString()
+    val jwkProvider = JwkProviderBuilder(jwkUrl(jwkIssuer))
+        .cached(10, 24, TimeUnit.HOURS)
+        .rateLimited(10, 1, TimeUnit.MINUTES)
+        .build()
+
     install(Authentication) {
+        jwt {
+            verifier(jwkProvider, jwkIssuer)
+            realm = "jwk auth"
+            validate { credentials ->
+                if (credentials.payload.audience.contains(environment.config.property("jwk.audience").getString()))
+                    JWTPrincipal(credentials.payload)
+                else
+                    null
+            }
+        }
     }
 
     install(ContentNegotiation) {
@@ -101,3 +122,10 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 }
+
+fun Application.jwkUrl(url: String): URL = URL(
+    URLBuilder(url)
+        .path(".well-known/openid-configuration/jwks")
+        .build()
+        .toString()
+)
