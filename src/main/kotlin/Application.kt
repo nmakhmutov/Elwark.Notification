@@ -3,7 +3,7 @@ package com.elwark.notification
 import com.auth0.jwk.JwkProviderBuilder
 import com.elwark.notification.api.emailEndpoints
 import com.elwark.notification.db.MongoDbContext
-import com.elwark.notification.email.EmailService
+import com.elwark.notification.email.EmailBalanceService
 import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
@@ -59,7 +59,7 @@ fun Application.module(testing: Boolean = false) {
 
     val mongo = environment.config.config("mongodb")
     val dbContext = MongoDbContext(mongo.property("connection").getString(), mongo.property("db").getString())
-    val emailService = EmailService(dbContext)
+    val emailService = EmailBalanceService(dbContext)
 
     runBlocking {
         // Sample for making a HTTP Client request
