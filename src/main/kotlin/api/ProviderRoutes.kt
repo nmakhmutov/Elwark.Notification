@@ -1,6 +1,6 @@
 package com.elwark.notification.api
 
-import com.elwark.notification.email.EmailProviders
+import com.elwark.notification.email.ProviderType
 import com.elwark.notification.email.EmailBalanceService
 import io.ktor.application.call
 import io.ktor.auth.authenticate
@@ -11,17 +11,17 @@ import io.ktor.routing.*
 
 data class Post(val dailyLimit: Int)
 
-fun Routing.emailEndpoints(emailService: EmailBalanceService) {
+fun Routing.providersEndpoints(emailService: EmailBalanceService) {
     authenticate {
-        route("/balance") {
+        route("/providers") {
 
-            get("/") {
+            get("/balance") {
                 val data = emailService.getNext()
                 call.respond(data)
             }
 
             put("/{provider}") {
-                val provider = EmailProviders.values()
+                val provider = ProviderType.values()
                     .firstOrNull { it.toString().equals((call.parameters["provider"]!!).toLowerCase(), true) }
                     ?: return@put call.respond(HttpStatusCode.NotFound)
 

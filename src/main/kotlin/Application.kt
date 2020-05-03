@@ -1,7 +1,7 @@
 package com.elwark.notification
 
 import com.auth0.jwk.JwkProviderBuilder
-import com.elwark.notification.api.emailEndpoints
+import com.elwark.notification.api.providersEndpoints
 import com.elwark.notification.db.MongoDbContext
 import com.elwark.notification.email.EmailBalanceService
 import io.ktor.application.Application
@@ -14,7 +14,6 @@ import io.ktor.auth.jwt.jwt
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.features.BrowserUserAgent
-import io.ktor.client.features.auth.Auth
 import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.JsonFeature
 import io.ktor.client.features.logging.LogLevel
@@ -101,7 +100,7 @@ fun Application.module(testing: Boolean = false) {
 
     install(Routing) {
         trace { application.log.trace(it.buildText()) }
-        emailEndpoints(emailService)
+        providersEndpoints(emailService)
     }
 
     install(StatusPages) {
@@ -121,7 +120,7 @@ fun Application.module(testing: Boolean = false) {
     }
 }
 
-fun Application.jwkUrl(url: String): URL = URL(
+fun jwkUrl(url: String): URL = URL(
     URLBuilder(url)
         .path(".well-known/openid-configuration/jwks")
         .build()

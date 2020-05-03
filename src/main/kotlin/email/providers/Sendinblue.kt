@@ -1,6 +1,7 @@
 package com.elwark.notification.email.providers
 
-import com.elwark.notification.email.EmailProviders
+import com.elwark.notification.email.ProviderType
+import com.elwark.notification.email.IEmailProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -11,14 +12,15 @@ import io.ktor.http.contentType
 
 data class SendinblueOptions(val host: String, val key: String)
 
-class Sendinblue(private val client: HttpClient, private val options: SendinblueOptions) : IEmailProvider {
+class Sendinblue(private val client: HttpClient, private val options: SendinblueOptions) :
+    IEmailProvider {
 
     private val sendUrl = URLBuilder(options.host)
         .path("v3/smtp/email")
         .buildString()
 
-    override val provider: EmailProviders =
-        EmailProviders.Sendinblue
+    override val provider: ProviderType =
+        ProviderType.Sendinblue
 
     override suspend fun sendMessage(to: String, subject: String, body: String) {
         val message = Message(

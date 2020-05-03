@@ -1,6 +1,7 @@
 package com.elwark.notification.email.providers
 
-import com.elwark.notification.email.EmailProviders
+import com.elwark.notification.email.ProviderType
+import com.elwark.notification.email.IEmailProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -11,14 +12,15 @@ import io.ktor.http.contentType
 
 data class SendgridOptions(val host: String, val key: String)
 
-class Sendgrid(private val client: HttpClient, private val options: SendgridOptions) : IEmailProvider {
+class Sendgrid(private val client: HttpClient, private val options: SendgridOptions) :
+    IEmailProvider {
 
     private val sendUrl = URLBuilder(options.host)
         .path("v3/mail/send")
         .buildString()
 
-    override val provider: EmailProviders =
-        EmailProviders.Sendgrid
+    override val provider: ProviderType =
+        ProviderType.Sendgrid
 
     override suspend fun sendMessage(to: String, subject: String, body: String) {
         val message = Message(

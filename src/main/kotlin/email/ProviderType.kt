@@ -1,6 +1,7 @@
 package com.elwark.notification.email
 
-enum class EmailProviders {
+enum class ProviderType {
     Sendinblue,
     Sendgrid
 }
+

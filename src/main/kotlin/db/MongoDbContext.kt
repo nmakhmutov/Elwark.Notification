@@ -5,7 +5,7 @@ import org.litote.kmongo.coroutine.coroutine
 import org.litote.kmongo.reactivestreams.KMongo
 
 class MongoDbContext(connectionString: String, database: String) {
-    val emailProviders: CoroutineCollection<EmailProviderModel>
+    val emailProviders: CoroutineCollection<ProviderModel>
 
     init {
         val mongoClient = KMongo.createClient(connectionString).coroutine

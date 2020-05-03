@@ -1,6 +1,6 @@
 package com.elwark.notification.email
 
-import com.elwark.notification.db.EmailProviderModel
+import com.elwark.notification.db.ProviderModel
 import com.elwark.notification.db.MongoDbContext
 import org.litote.kmongo.*
 import java.lang.Exception
@@ -14,9 +14,9 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
         return result.map { ProviderBalanceDto(it.name, it.dailyLimit, it.balance, it.lastUsedAt) }
     }
 
-    suspend fun updateDailyLimit(provider: EmailProviders, limit: Int) {
+    suspend fun updateDailyLimit(provider: ProviderType, limit: Int) {
         while (true) {
-            val model = dbContext.emailProviders.findOne(EmailProviderModel::name eq provider)
+            val model = dbContext.emailProviders.findOne(ProviderModel::name eq provider)
                 ?: return
 
             val balance = if (model.dailyLimit > limit) {
@@ -32,13 +32,13 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
 
             val result = dbContext.emailProviders.updateOne(
                 and(
-                    EmailProviderModel::name eq provider,
-                    EmailProviderModel::version eq model.version
+                    ProviderModel::name eq provider,
+                    ProviderModel::version eq model.version
                 ),
                 combine(
-                    setValue(EmailProviderModel::dailyLimit, limit),
-                    setValue(EmailProviderModel::balance, balance),
-                    inc(EmailProviderModel::version, 1)
+                    setValue(ProviderModel::dailyLimit, limit),
+                    setValue(ProviderModel::balance, balance),
+                    inc(ProviderModel::version, 1)
                 )
             )
 
@@ -47,22 +47,22 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
         }
     }
 
-    suspend fun getNext(): EmailProviders {
+    suspend fun getNext(): ProviderType {
         while (true) {
             val model = dbContext.emailProviders
-                .find(EmailProviderModel:: balance gt 0)
-                .sort(descending(EmailProviderModel::balance))
+                .find(ProviderModel:: balance gt 0)
+                .sort(descending(ProviderModel::balance))
                 .first() ?: throw Exception("Out of daily limit")
 
             val update = dbContext.emailProviders.updateOne(
                 and(
-                    EmailProviderModel::name eq model.name,
-                    EmailProviderModel::version eq model.version
+                    ProviderModel::name eq model.name,
+                    ProviderModel::version eq model.version
                 ),
                 combine(
-                    inc(EmailProviderModel::balance, -1),
-                    inc(EmailProviderModel::version, 1),
-                    setValue(EmailProviderModel::lastUsedAt, LocalDateTime.now(ZoneOffset.UTC))
+                    inc(ProviderModel::balance, -1),
+                    inc(ProviderModel::version, 1),
+                    setValue(ProviderModel::lastUsedAt, LocalDateTime.now(ZoneOffset.UTC))
                 )
             )
 
