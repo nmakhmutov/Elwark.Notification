@@ -5,7 +5,6 @@ import com.elwark.notification.email.EmailProviders
 interface IEmailProvider {
     val provider: EmailProviders
 
-    suspend fun sendHtmlMessage(to: String, subject: String, body: String)
-    suspend fun sendTextMessage(to: String, subject: String, body: String)
+    suspend fun sendMessage(to: String, subject: String, body: String)
 }
 
