@@ -17,6 +17,7 @@ import io.ktor.client.features.BrowserUserAgent
 import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.JsonFeature
 import io.ktor.client.features.logging.LogLevel
+import io.ktor.client.features.logging.Logger
 import io.ktor.client.features.logging.Logging
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
@@ -32,9 +33,12 @@ import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.routing
 import io.ktor.util.KtorExperimentalAPI
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.slf4j.event.Level
 import java.net.URL
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
@@ -117,6 +121,14 @@ fun Application.module(testing: Boolean = false) {
         get("/hc") {
             call.respondText("Healthy", contentType = ContentType.Text.Plain)
         }
+    }
+
+    launch {
+        while (true) {
+            emailService.checkAndResetBalances()
+            delay(Duration.ofMinutes(1).toMillis())
+        }
+
     }
 }
 

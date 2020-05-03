@@ -4,4 +4,3 @@ enum class ProviderType {
     Sendinblue,
     Sendgrid
 }
-

@@ -15,8 +15,8 @@ fun Routing.providersEndpoints(emailService: EmailBalanceService) {
     authenticate {
         route("/providers") {
 
-            get("/balance") {
-                val data = emailService.getNext()
+            get("/") {
+                val data = emailService.getAll()
                 call.respond(data)
             }
 
