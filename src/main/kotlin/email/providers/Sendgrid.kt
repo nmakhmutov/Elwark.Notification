@@ -42,10 +42,10 @@ class Sendgrid(private val client: HttpClient, private val options: SendgridOpti
     }
 
     private data class Message(
-        val personalizations: Iterable<Personalization>,
+        val personalizations: List<Personalization>,
         val from: Email,
         val subject: String,
-        val content: Iterable<Content>
+        val content: List<Content>
     )
 
     private data class Personalization(val to: Iterable<Email>)

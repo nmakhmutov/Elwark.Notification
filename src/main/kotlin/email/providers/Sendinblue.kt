@@ -41,7 +41,7 @@ class Sendinblue(private val client: HttpClient, private val options: Sendinblue
 
     private data class Message(
         val sender: Email,
-        val to: Iterable<Email>,
+        val to: List<Email>,
         val subject: String,
         val htmlContent: String
     )
