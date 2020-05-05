@@ -1,4 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.Coroutines
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val ktor_version: String by project
@@ -9,23 +8,14 @@ val logback_version: String by project
 plugins {
     application
     kotlin("jvm") version "1.3.72"
+    id("com.github.johnrengelman.shadow") version "5.2.0"
 }
 
 group = "com.elwark.notification"
-version = "1.0.0"
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_12
-}
-
-tasks.withType<KotlinCompile>().all {
-    kotlinOptions.jvmTarget = "1.8"
-}
 
 application {
     mainClassName = "io.ktor.server.netty.EngineMain"
 }
-
 
 repositories {
     mavenLocal()
@@ -52,4 +42,18 @@ dependencies {
     implementation("org.litote.kmongo:kmongo-coroutine:4.0.0")
     implementation("com.rabbitmq:amqp-client:latest.release")
     testImplementation("io.ktor:ktor-server-tests:$ktor_version")
+}
+
+tasks.withType<KotlinCompile> {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+tasks.withType<Jar> {
+    manifest {
+        attributes(
+            mapOf(
+                "Main-Class" to application.mainClassName
+            )
+        )
+    }
 }

@@ -160,6 +160,7 @@ fun Application.module(testing: Boolean = false) {
     factory.username = environment.config.property("rabbitmq.username").getString()
     factory.password = environment.config.property("rabbitmq.password").getString()
     factory.virtualHost = environment.config.property("rabbitmq.virtualHost").getString()
+    factory.port = environment.config.property("rabbitmq.port").getString().toInt()
 
     val exchangeName = environment.config.property("rabbitmq.exchange").getString()
     val connection = factory.newConnection(serviceName)
