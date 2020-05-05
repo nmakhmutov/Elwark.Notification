@@ -11,6 +11,8 @@ import com.elwark.notification.email.providers.Sendgrid
 import com.elwark.notification.email.providers.SendgridOptions
 import com.elwark.notification.email.providers.Sendinblue
 import com.elwark.notification.email.providers.SendinblueOptions
+import com.elwark.notification.events.EmailCreatedEventHandler
+import com.elwark.notification.events.EmailCreatedIntegrationEvent
 import com.google.gson.GsonBuilder
 import com.rabbitmq.client.BuiltinExchangeType
 import com.rabbitmq.client.ConnectionFactory
@@ -49,7 +51,6 @@ import org.slf4j.event.Level
 import java.net.URL
 import java.time.Duration
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
@@ -172,7 +173,11 @@ fun Application.module(testing: Boolean = false) {
     channel.basicConsume(
         queue.queue,
         false,
-        EmailCreatedEventHandler(channel, emailProviderFactory, gsonBuilder.create())
+        EmailCreatedEventHandler(
+            channel,
+            emailProviderFactory,
+            gsonBuilder.create()
+        )
     )
 
     launch {

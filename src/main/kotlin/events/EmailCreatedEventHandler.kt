@@ -1,4 +1,4 @@
-package com.elwark.notification
+package com.elwark.notification.events
 
 import com.elwark.notification.email.EmailProviderFactory
 import com.google.gson.Gson
@@ -12,7 +12,11 @@ import java.util.*
 
 data class EmailCreatedIntegrationEvent(val id: UUID, val email: String, val subject: String, val body: String)
 
-class EmailCreatedEventHandler(channel: Channel, val emailProviderFactory: EmailProviderFactory, val gson: Gson) :
+class EmailCreatedEventHandler(
+    channel: Channel,
+    private val emailProviderFactory: EmailProviderFactory,
+    private val gson: Gson
+) :
     DefaultConsumer(channel) {
     private val logger = LoggerFactory.getLogger(EmailCreatedEventHandler::class.java)
 
