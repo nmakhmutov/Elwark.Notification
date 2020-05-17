@@ -13,6 +13,7 @@ import com.elwark.notification.email.providers.Sendinblue
 import com.elwark.notification.email.providers.SendinblueOptions
 import com.elwark.notification.events.EmailCreatedEventHandler
 import com.elwark.notification.events.EmailCreatedIntegrationEvent
+import com.elwark.notification.responses.ErrorResponse
 import com.google.gson.GsonBuilder
 import com.rabbitmq.client.BuiltinExchangeType
 import com.rabbitmq.client.ConnectionFactory
@@ -47,6 +48,7 @@ import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.slf4j.event.Level
+import org.valiktor.ConstraintViolationException
 import java.net.URL
 import java.time.Duration
 import java.time.LocalDate
@@ -144,11 +146,20 @@ fun Application.module(testing: Boolean = false) {
 
     install(StatusPages) {
         this.exception<Throwable> {
-            call.respond(HttpStatusCode.BadRequest, object {
-                val title = it::class.java.name
-                val message = it.localizedMessage
-            })
-            throw it
+            val error = when (it) {
+                is ConstraintViolationException ->
+                    ErrorResponse(
+                        "Validation error",
+                        "model state error",
+                        it.constraintViolations
+                            .groupBy { it.property }
+                            .map { Pair(it.key, it.value.map { it.constraint.name }) }
+                            .toMap()
+                    )
+                else -> ErrorResponse(it::class.java.name, it.localizedMessage ?: "error")
+            }
+
+            call.respond(HttpStatusCode.BadRequest, error)
         }
     }
 
