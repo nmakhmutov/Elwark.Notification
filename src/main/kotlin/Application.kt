@@ -1,8 +1,8 @@
 package com.elwark.notification
 
-import com.auth0.jwk.JwkProvider
 import com.auth0.jwk.JwkProviderBuilder
 import com.elwark.notification.api.providersEndpoints
+import com.elwark.notification.converters.LocalDateConverter
 import com.elwark.notification.converters.LocalDateTimeConverter
 import com.elwark.notification.db.MongoDbContext
 import com.elwark.notification.email.EmailBalanceService
@@ -38,7 +38,6 @@ import io.ktor.features.StatusPages
 import io.ktor.gson.gson
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.URLBuilder
 import io.ktor.request.path
 import io.ktor.response.respond
 import io.ktor.response.respondText
@@ -50,6 +49,7 @@ import kotlinx.coroutines.launch
 import org.slf4j.event.Level
 import java.net.URL
 import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 
@@ -62,18 +62,15 @@ fun Application.module(testing: Boolean = false) {
     val serviceName = "Elwark.Notification"
 
     val gsonBuilder = GsonBuilder()
-        .registerTypeAdapter(
-            LocalDateTime::class.java,
-            LocalDateTimeConverter()
-        )
+        .registerTypeAdapter(LocalDate::class.java, LocalDateConverter())
+        .registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeConverter())
+
 
     val client = HttpClient(CIO) {
         install(JsonFeature) {
             serializer = GsonSerializer {
-                registerTypeAdapter(
-                    LocalDateTime::class.java,
-                    LocalDateTimeConverter()
-                )
+                registerTypeAdapter(LocalDate::class.java, LocalDateConverter())
+                registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeConverter())
             }
         }
         install(Logging) {
@@ -81,7 +78,6 @@ fun Application.module(testing: Boolean = false) {
             logger = Logger.DEFAULT
         }
         BrowserUserAgent()
-        // install(UserAgent) { agent = "some user agent" }
     }
 
     val dbContext = MongoDbContext(
@@ -110,7 +106,10 @@ fun Application.module(testing: Boolean = false) {
     )
 
     val jwkIssuer = environment.config.property("jwk.issuer").getString()
-    val jwkProvider = createJwkProvider(jwkIssuer)
+    val jwkProvider = JwkProviderBuilder(URL(environment.config.property("jwk.url").getString()))
+        .cached(10, 24, TimeUnit.HOURS)
+        .rateLimited(10, 1, TimeUnit.MINUTES)
+        .build()
 
     install(Authentication) {
         jwt {
@@ -127,10 +126,8 @@ fun Application.module(testing: Boolean = false) {
 
     install(ContentNegotiation) {
         gson {
-            registerTypeAdapter(
-                LocalDateTime::class.java,
-                LocalDateTimeConverter()
-            )
+            registerTypeAdapter(LocalDate::class.java, LocalDateConverter())
+            registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeConverter())
         }
     }
 
@@ -187,15 +184,4 @@ fun Application.module(testing: Boolean = false) {
             delay(Duration.ofMinutes(1).toMillis())
         }
     }
-}
-
-fun createJwkProvider(jwkIssuer: String): JwkProvider {
-    val jwksUrl = URLBuilder(jwkIssuer)
-        .path(".well-known/openid-configuration/jwks")
-        .buildString()
-
-    return JwkProviderBuilder(URL(jwksUrl))
-        .cached(10, 24, TimeUnit.HOURS)
-        .rateLimited(10, 1, TimeUnit.MINUTES)
-        .build()
 }

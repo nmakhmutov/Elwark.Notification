@@ -4,8 +4,10 @@ import java.time.LocalDateTime
 
 data class ProviderBalanceDto(
     val provider: ProviderType,
-    val dailyLimit: Int,
+    val limit: Int,
     val balance: Int,
+    val updateInterval: Long,
+    val updateAt: LocalDateTime,
     val lastUsedAt: LocalDateTime
 )
 

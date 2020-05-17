@@ -41,6 +41,7 @@ dependencies {
     implementation("io.ktor:ktor-client-logging-jvm:$ktor_version")
     implementation("org.litote.kmongo:kmongo-coroutine:4.0.0")
     implementation("com.rabbitmq:amqp-client:latest.release")
+    implementation("org.valiktor:valiktor-core:0.11.0")
     testImplementation("io.ktor:ktor-server-tests:$ktor_version")
 }
 

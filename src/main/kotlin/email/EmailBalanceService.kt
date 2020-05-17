@@ -5,6 +5,7 @@ import com.elwark.notification.db.MongoDbContext
 import org.litote.kmongo.*
 import org.slf4j.LoggerFactory
 import java.lang.Exception
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
@@ -14,23 +15,32 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
     suspend fun getAll(): Iterable<ProviderBalanceDto> {
         val result = dbContext.emailProviders.find().toList()
 
-        return result.map { ProviderBalanceDto(it.type, it.dailyLimit, it.balance, it.lastUsedAt) }
+        return result.map {
+            ProviderBalanceDto(
+                it.type,
+                it.limit,
+                it.balance,
+                it.updateInterval,
+                it.updateAt,
+                it.lastUsedAt
+            )
+        }
     }
 
-    suspend fun updateDailyLimit(provider: ProviderType, limit: Int) {
+    suspend fun update(provider: ProviderType, limit: Int, interval: Long, updateAt: LocalDate) {
         while (true) {
             val model = dbContext.emailProviders.findOne(ProviderModel::type eq provider)
                 ?: return
 
-            val balance = if (model.dailyLimit > limit) {
-                val tmp = model.balance - (model.dailyLimit - limit)
+            val balance = if (model.limit > limit) {
+                val tmp = model.balance - (model.limit - limit)
                 if (tmp < 0) {
                     0
                 } else {
                     tmp
                 }
             } else {
-                model.balance + (limit - model.dailyLimit)
+                model.balance + (limit - model.limit)
             }
 
             val result = dbContext.emailProviders.updateOne(
@@ -39,8 +49,13 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
                     ProviderModel::version eq model.version
                 ),
                 combine(
-                    setValue(ProviderModel::dailyLimit, limit),
+                    setValue(ProviderModel::limit, limit),
                     setValue(ProviderModel::balance, balance),
+                    setValue(
+                        ProviderModel::updateAt,
+                        LocalDateTime.of(updateAt.year, updateAt.month, updateAt.dayOfMonth, 0, 0, 1)
+                    ),
+                    setValue(ProviderModel::updateInterval, interval),
                     inc(ProviderModel::version, 1)
                 )
             )
@@ -62,7 +77,7 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
             dbContext.emailProviders.updateOne(
                 ProviderModel::type eq provider.type,
                 combine(
-                    setValue(ProviderModel::balance, provider.dailyLimit),
+                    setValue(ProviderModel::balance, provider.limit),
                     setValue(ProviderModel::updateAt, provider.updateAt.plusSeconds(provider.updateInterval))
                 )
             )

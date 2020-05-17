@@ -10,7 +10,7 @@ import java.time.ZoneOffset
 
 data class ProviderModel(
     val type: ProviderType,
-    val dailyLimit: Int,
+    val limit: Int,
     val balance: Int,
     val updateInterval: Long,
     val updateAt: LocalDateTime

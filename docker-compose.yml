@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   notification:
-    container_name: "notification"
+    container_name: "elwark_notification"
     image: elwark/notification:${TAG:-latest}
     build:
       context: ./
