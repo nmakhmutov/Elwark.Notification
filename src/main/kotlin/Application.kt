@@ -33,11 +33,11 @@ import io.ktor.client.features.logging.DEFAULT
 import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logger
 import io.ktor.client.features.logging.Logging
-import io.ktor.features.CallLogging
-import io.ktor.features.ContentNegotiation
-import io.ktor.features.StatusPages
+import io.ktor.features.*
 import io.ktor.gson.gson
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.path
 import io.ktor.response.respond
@@ -106,6 +106,20 @@ fun Application.module(testing: Boolean = false) {
             )
         )
     )
+
+    install(ForwardedHeaderSupport)
+
+    install(CORS) {
+        method(HttpMethod.Options)
+        method(HttpMethod.Get)
+        method(HttpMethod.Put)
+        header(HttpHeaders.Authorization)
+        header(HttpHeaders.AccessControlAllowHeaders)
+        header(HttpHeaders.AccessControlAllowOrigin)
+        header(HttpHeaders.ContentType)
+
+        anyHost()
+    }
 
     val jwkIssuer = environment.config.property("jwk.issuer").getString()
     val jwkProvider = JwkProviderBuilder(URL(environment.config.property("jwk.url").getString()))
@@ -190,9 +204,10 @@ fun Application.module(testing: Boolean = false) {
     )
 
     launch {
+        val delay = Duration.ofMinutes(1).toMillis();
         while (true) {
             emailBalanceService.checkAndResetBalances()
-            delay(Duration.ofMinutes(1).toMillis())
+            delay(delay)
         }
     }
 }

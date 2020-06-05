@@ -12,19 +12,26 @@ import java.time.ZoneOffset
 class EmailBalanceService(private val dbContext: MongoDbContext) {
     private val logger = LoggerFactory.getLogger(EmailBalanceService::class.qualifiedName)
 
+    private fun ProviderModel.toDto(): ProviderBalanceDto =
+        ProviderBalanceDto(
+            this.type,
+            this.limit,
+            this.balance,
+            this.updateInterval,
+            this.updateAt,
+            this.lastUsedAt
+        )
+
     suspend fun getAll(): Iterable<ProviderBalanceDto> {
         val result = dbContext.emailProviders.find().toList()
 
-        return result.map {
-            ProviderBalanceDto(
-                it.type,
-                it.limit,
-                it.balance,
-                it.updateInterval,
-                it.updateAt,
-                it.lastUsedAt
-            )
-        }
+        return result.map { it.toDto() }
+    }
+
+    suspend fun get(provider: ProviderType): ProviderBalanceDto {
+        val result = dbContext.emailProviders.findOne(ProviderModel::type eq provider)
+
+        return result?.toDto() ?: throw IllegalArgumentException("Not found provider '$provider'")
     }
 
     suspend fun update(provider: ProviderType, limit: Int, interval: UpdateInterval, updateAt: LocalDate) {

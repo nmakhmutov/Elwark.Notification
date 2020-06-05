@@ -15,10 +15,11 @@ import org.valiktor.functions.*
 import org.valiktor.validate
 import java.time.LocalDate
 
-data class Post(val limit: Int, val interval: UpdateInterval, val updateAt: LocalDate) {
+data class Post(val limit: Int, val updateInterval: UpdateInterval, val updateAt: LocalDate) {
     companion object {
         fun validate(post: Post) = validate(post) {
             validate(Post::limit).isGreaterThanOrEqualTo(0)
+            validate(Post::updateInterval).isNotNull()
             validate(Post::updateAt).isNotNull()
         }
     }
@@ -40,9 +41,10 @@ fun Routing.providersEndpoints(emailService: EmailBalanceService) {
 
                 val request = call.receive<Post>()
                 Post.validate(request)
-                emailService.update(provider, request.limit, request.interval, request.updateAt)
+                emailService.update(provider, request.limit, request.updateInterval, request.updateAt)
 
-                call.respond(HttpStatusCode.OK)
+                val data = emailService.get(provider)
+                call.respond(data)
             }
         }
     }
