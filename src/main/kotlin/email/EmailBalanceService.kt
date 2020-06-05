@@ -27,7 +27,7 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
         }
     }
 
-    suspend fun update(provider: ProviderType, limit: Int, interval: Long, updateAt: LocalDate) {
+    suspend fun update(provider: ProviderType, limit: Int, interval: UpdateInterval, updateAt: LocalDate) {
         while (true) {
             val model = dbContext.emailProviders.findOne(ProviderModel::type eq provider)
                 ?: return
@@ -53,7 +53,7 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
                     setValue(ProviderModel::balance, balance),
                     setValue(
                         ProviderModel::updateAt,
-                        LocalDateTime.of(updateAt.year, updateAt.month, updateAt.dayOfMonth, 0, 0, 1)
+                        LocalDateTime.of(updateAt.year, updateAt.month, updateAt.dayOfMonth, 0, 0, 0)
                     ),
                     setValue(ProviderModel::updateInterval, interval),
                     inc(ProviderModel::version, 1)
@@ -74,11 +74,16 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
             return
 
         for (provider in providers) {
+            val updateAt = when (provider.updateInterval) {
+                UpdateInterval.Daily -> provider.updateAt.plusDays(1)
+                UpdateInterval.Monthly -> provider.updateAt.plusMonths(1)
+            }
+
             dbContext.emailProviders.updateOne(
                 ProviderModel::type eq provider.type,
                 combine(
                     setValue(ProviderModel::balance, provider.limit),
-                    setValue(ProviderModel::updateAt, provider.updateAt.plusSeconds(provider.updateInterval))
+                    setValue(ProviderModel::updateAt, updateAt)
                 )
             )
 

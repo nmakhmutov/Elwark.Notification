@@ -1,18 +1,17 @@
 package com.elwark.notification.db
 
 import com.elwark.notification.email.ProviderType
+import com.elwark.notification.email.UpdateInterval
 import org.bson.codecs.pojo.annotations.BsonId
 import org.litote.kmongo.Id
 import org.litote.kmongo.newId
-import java.time.Duration
 import java.time.LocalDateTime
-import java.time.ZoneOffset
 
 data class ProviderModel(
     val type: ProviderType,
     val limit: Int,
     val balance: Int,
-    val updateInterval: Long,
+    val updateInterval: UpdateInterval,
     val updateAt: LocalDateTime
 ) {
     @BsonId

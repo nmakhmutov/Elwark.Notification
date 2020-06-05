@@ -1,6 +1,7 @@
 package com.elwark.notification.db
 
 import com.elwark.notification.email.ProviderType
+import com.elwark.notification.email.UpdateInterval
 import kotlinx.coroutines.runBlocking
 import org.litote.kmongo.coroutine.CoroutineCollection
 import org.litote.kmongo.coroutine.coroutine
@@ -31,14 +32,14 @@ class MongoDbContext(connectionString: String, database: String) {
                     ProviderType.Sendgrid,
                     100,
                     100,
-                    Duration.ofDays(1).toSeconds(),
+                    UpdateInterval.Daily,
                     tomorrow.plusSeconds(1)
                 ),
                 ProviderModel(
                     ProviderType.Sendinblue,
                     300,
                     300,
-                    Duration.ofDays(1).toSeconds(),
+                    UpdateInterval.Daily,
                     tomorrow.plusSeconds(1)
                 )
             )
