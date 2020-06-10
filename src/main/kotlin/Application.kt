@@ -35,13 +35,11 @@ import io.ktor.client.features.logging.Logger
 import io.ktor.client.features.logging.Logging
 import io.ktor.features.*
 import io.ktor.gson.gson
-import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.path
 import io.ktor.response.respond
-import io.ktor.response.respondText
 import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.util.KtorExperimentalAPI
@@ -154,7 +152,7 @@ fun Application.module(testing: Boolean = false) {
 
     install(Routing) {
         trace { application.log.trace(it.buildText()) }
-        get("/hc") { call.respondText("Healthy", contentType = ContentType.Text.Plain) }
+        get("/hc") { call.respond(HealthCheckResponse("Healthy")) }
         providersEndpoints(emailBalanceService)
     }
 
