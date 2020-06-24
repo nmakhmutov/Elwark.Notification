@@ -80,7 +80,7 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
         if (providers.count() == 0)
             return
 
-        for (provider in providers) {
+        providers.forEach { provider ->
             val updateAt = when (provider.updateInterval) {
                 UpdateInterval.Daily -> provider.updateAt.plusDays(1)
                 UpdateInterval.Monthly -> provider.updateAt.plusMonths(1)

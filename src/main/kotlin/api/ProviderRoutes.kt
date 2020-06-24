@@ -30,8 +30,7 @@ fun Routing.providersEndpoints(emailService: EmailBalanceService) {
         route("/providers") {
 
             get("/") {
-                val data = emailService.getAll()
-                call.respond(data)
+                emailService.getAll().run { call.respond(it) }
             }
 
             put("/{provider}") {
@@ -39,12 +38,9 @@ fun Routing.providersEndpoints(emailService: EmailBalanceService) {
                     .firstOrNull { it.toString().equals((call.parameters["provider"]!!).toLowerCase(), true) }
                     ?: return@put call.respond(HttpStatusCode.NotFound)
 
-                val request = call.receive<Post>()
-                Post.validate(request)
+                val request = call.receive<Post>().also { Post.validate(it) }
                 emailService.update(provider, request.limit, request.updateInterval, request.updateAt)
-
-                val data = emailService.get(provider)
-                call.respond(data)
+                emailService.get(provider).run { call.respond(it) }
             }
         }
     }
