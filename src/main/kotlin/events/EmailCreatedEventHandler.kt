@@ -6,6 +6,9 @@ import com.rabbitmq.client.AMQP
 import com.rabbitmq.client.Channel
 import com.rabbitmq.client.DefaultConsumer
 import com.rabbitmq.client.Envelope
+import io.ktor.client.features.ClientRequestException
+import io.ktor.client.features.ResponseException
+import io.ktor.client.statement.readText
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -30,7 +33,7 @@ class EmailCreatedEventHandler(
             gson.fromJson(String(it), EmailCreatedIntegrationEvent::class.java)
         } ?: return
 
-        logger.debug("Received message ${message.id}")
+        logger.debug("Received message ${message.id} for email ${message.email}")
 
         try {
             runBlocking {
@@ -42,8 +45,10 @@ class EmailCreatedEventHandler(
             }
 
             channel.basicAck(envelope.deliveryTag, false)
-        } catch (ex: Exception) {
-            channel.basicNack(envelope.deliveryTag, false, false)
+        }
+        catch (ex: Exception) {
+            logger.error(ex.message)
+            channel.basicReject(envelope.deliveryTag, true)
         }
     }
 }

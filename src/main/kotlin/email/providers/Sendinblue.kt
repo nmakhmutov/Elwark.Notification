@@ -1,19 +1,17 @@
 package com.elwark.notification.email.providers
 
-import com.elwark.notification.email.ProviderType
 import com.elwark.notification.email.IEmailProvider
+import com.elwark.notification.email.ProviderType
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.url
-import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.URLBuilder
-import io.ktor.http.contentType
 
 data class SendinblueOptions(val host: String, val key: String)
 
-class Sendinblue(private val client: HttpClient, private val options: SendinblueOptions) :
-    IEmailProvider {
+class Sendinblue(private val client: HttpClient, private val options: SendinblueOptions) : IEmailProvider {
 
     private val sendUrl = URLBuilder(options.host)
         .path("v3/smtp/email")
@@ -32,7 +30,7 @@ class Sendinblue(private val client: HttpClient, private val options: Sendinblue
 
         client.post<Unit> {
             url(sendUrl)
-            contentType(ContentType.Application.Json)
+            header(HttpHeaders.ContentType, "application/json")
             header("api-key", options.key)
 
             this.body = message

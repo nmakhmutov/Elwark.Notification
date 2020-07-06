@@ -6,9 +6,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.url
-import io.ktor.http.ContentType
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.HttpHeaders
 import io.ktor.http.URLBuilder
-import io.ktor.http.contentType
 
 data class SendgridOptions(val host: String, val key: String)
 
@@ -32,10 +32,10 @@ class Sendgrid(private val client: HttpClient, private val options: SendgridOpti
             listOf(Content("text/html", body))
         )
 
-        client.post<Unit> {
+        client.post<HttpResponse> {
             url(sendUrl)
-            contentType(ContentType.Application.Json)
-            header("Authorization", "Bearer ${options.key}")
+            header(HttpHeaders.ContentType, "application/json")
+            header(HttpHeaders.Authorization, "Bearer ${options.key}")
 
             this.body = message
         }
@@ -48,7 +48,7 @@ class Sendgrid(private val client: HttpClient, private val options: SendgridOpti
         val content: List<Content>
     )
 
-    private data class Personalization(val to: Iterable<Email>)
+    private data class Personalization(val to: List<Email>)
 
     data class Content(val type: String, val value: String)
 
