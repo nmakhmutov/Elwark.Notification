@@ -12,7 +12,7 @@ data class ProviderModel(
     val limit: Int,
     val balance: Int,
     val updateInterval: UpdateInterval,
-    val updateAt: LocalDateTime
+    val updatedAt: LocalDateTime
 ) {
     @BsonId
     val id: Id<ProviderModel> = newId()

@@ -25,9 +25,11 @@ repositories {
 }
 
 dependencies {
+    implementation("ch.qos.logback:logback-classic:$logback_version")
+    implementation("net.logstash.logback:logstash-logback-encoder:6.4")
+
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version")
     implementation("io.ktor:ktor-server-netty:$ktor_version")
-    implementation("ch.qos.logback:logback-classic:$logback_version")
     implementation("io.ktor:ktor-server-core:$ktor_version")
     implementation("io.ktor:ktor-auth:$ktor_version")
     implementation("io.ktor:ktor-auth-jwt:$ktor_version")
@@ -42,6 +44,7 @@ dependencies {
     implementation("org.litote.kmongo:kmongo-coroutine:4.0.0")
     implementation("com.rabbitmq:amqp-client:latest.release")
     implementation("org.valiktor:valiktor-core:0.11.0")
+    implementation("org.apache.commons:commons-email:1.5")
     testImplementation("io.ktor:ktor-server-tests:$ktor_version")
 }
 

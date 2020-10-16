@@ -7,10 +7,7 @@ import com.elwark.notification.converters.LocalDateTimeConverter
 import com.elwark.notification.db.MongoDbContext
 import com.elwark.notification.email.EmailBalanceService
 import com.elwark.notification.email.EmailProviderFactory
-import com.elwark.notification.email.providers.Sendgrid
-import com.elwark.notification.email.providers.SendgridOptions
-import com.elwark.notification.email.providers.Sendinblue
-import com.elwark.notification.email.providers.SendinblueOptions
+import com.elwark.notification.email.providers.*
 import com.elwark.notification.events.EmailCreatedEventHandler
 import com.elwark.notification.events.EmailCreatedIntegrationEvent
 import com.elwark.notification.responses.ErrorResponse
@@ -65,7 +62,6 @@ fun Application.module(testing: Boolean = false) {
         .registerTypeAdapter(LocalDate::class.java, LocalDateConverter())
         .registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeConverter())
 
-
     val client = HttpClient(CIO) {
         install(JsonFeature) {
             serializer = GsonSerializer {
@@ -84,6 +80,7 @@ fun Application.module(testing: Boolean = false) {
         environment.config.property("mongodb.connection").getString(),
         environment.config.property("mongodb.db").getString()
     )
+
     val emailBalanceService = EmailBalanceService(dbContext)
     val emailProviderFactory = EmailProviderFactory(
         emailBalanceService,
@@ -100,6 +97,14 @@ fun Application.module(testing: Boolean = false) {
                 SendinblueOptions(
                     environment.config.property("sendinblue.host").getString(),
                     environment.config.property("sendinblue.key").getString()
+                )
+            ),
+            Gmail(
+                GmailOptions(
+                    environment.config.property("gmail.host").getString(),
+                    environment.config.property("gmail.port").getString().toInt(),
+                    environment.config.property("gmail.username").getString(),
+                    environment.config.property("gmail.password").getString()
                 )
             )
         )
@@ -191,15 +196,11 @@ fun Application.module(testing: Boolean = false) {
     val queueName = "$serviceName:${EmailCreatedIntegrationEvent::class.simpleName}"
     val queue = channel.queueDeclare(queueName, true, false, false, null)
     channel.queueBind(queue.queue, exchangeName, EmailCreatedIntegrationEvent::class.simpleName)
-    channel.basicConsume(
-        queue.queue,
-        false,
-        EmailCreatedEventHandler(
-            channel,
-            emailProviderFactory,
-            gsonBuilder.create()
-        )
-    )
+
+    for (i in 1..10) {
+        val handler = EmailCreatedEventHandler(channel, emailProviderFactory, gsonBuilder.create())
+        channel.basicConsume(queue.queue, false, handler)
+    }
 
     launch {
         val delay = Duration.ofMinutes(1).toMillis();

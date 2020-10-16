@@ -17,7 +17,8 @@ class MongoDbContext(connectionString: String, database: String) {
 
         emailProviders = mongodb.getCollection("email_providers")
         runBlocking {
-            if (emailProviders.countDocuments() == 0L)
+            val count =emailProviders.countDocuments()
+            if (count == 0L)
                 seed()
         }
     }
@@ -39,6 +40,13 @@ class MongoDbContext(connectionString: String, database: String) {
                     ProviderType.Sendinblue,
                     300,
                     300,
+                    UpdateInterval.Daily,
+                    tomorrow.plusSeconds(1)
+                ),
+                ProviderModel(
+                    ProviderType.Gmail,
+                    100,
+                    100,
                     UpdateInterval.Daily,
                     tomorrow.plusSeconds(1)
                 )

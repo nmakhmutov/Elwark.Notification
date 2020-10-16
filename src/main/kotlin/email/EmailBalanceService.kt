@@ -18,11 +18,11 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
             this.limit,
             this.balance,
             this.updateInterval,
-            this.updateAt,
+            this.updatedAt,
             this.lastUsedAt
         )
 
-    suspend fun getAll(): Iterable<ProviderBalanceDto> {
+    suspend fun getAll(): List<ProviderBalanceDto> {
         val result = dbContext.emailProviders.find().toList()
 
         return result.map { it.toDto() }
@@ -59,7 +59,7 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
                     setValue(ProviderModel::limit, limit),
                     setValue(ProviderModel::balance, balance),
                     setValue(
-                        ProviderModel::updateAt,
+                        ProviderModel::updatedAt,
                         LocalDateTime.of(updateAt.year, updateAt.month, updateAt.dayOfMonth, 0, 0, 0)
                     ),
                     setValue(ProviderModel::updateInterval, interval),
@@ -74,7 +74,7 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
 
     suspend fun checkAndResetBalances() {
         val providers = dbContext.emailProviders
-            .find(ProviderModel::updateAt lte LocalDateTime.now(ZoneOffset.UTC))
+            .find(ProviderModel::updatedAt lte LocalDateTime.now(ZoneOffset.UTC))
             .toList()
 
         if (providers.count() == 0)
@@ -82,15 +82,15 @@ class EmailBalanceService(private val dbContext: MongoDbContext) {
 
         providers.forEach { provider ->
             val updateAt = when (provider.updateInterval) {
-                UpdateInterval.Daily -> provider.updateAt.plusDays(1)
-                UpdateInterval.Monthly -> provider.updateAt.plusMonths(1)
+                UpdateInterval.Daily -> provider.updatedAt.plusDays(1)
+                UpdateInterval.Monthly -> provider.updatedAt.plusMonths(1)
             }
 
             dbContext.emailProviders.updateOne(
                 ProviderModel::type eq provider.type,
                 combine(
                     setValue(ProviderModel::balance, provider.limit),
-                    setValue(ProviderModel::updateAt, updateAt)
+                    setValue(ProviderModel::updatedAt, updateAt)
                 )
             )
 

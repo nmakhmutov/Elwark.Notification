@@ -7,7 +7,7 @@ data class ProviderBalanceDto(
     val limit: Int,
     val balance: Int,
     val updateInterval: UpdateInterval,
-    val updateAt: LocalDateTime,
+    val updatedAt: LocalDateTime,
     val lastUsedAt: LocalDateTime
 )
 
