@@ -1,0 +1,27 @@
+server:
+  port: 5005
+spring:
+  data:
+    mongodb:
+      uri: mongodb://master_account:master_password@localhost:27017
+      database: elwark_notification
+      uuid-representation: standard
+  kafka:
+    listener:
+      concurrency: 3
+    producer:
+      bootstrap-servers: localhost:9092
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      bootstrap-servers: localhost:9092
+      group-id: group-id
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: '*'
