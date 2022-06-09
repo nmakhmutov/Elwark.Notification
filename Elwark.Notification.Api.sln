@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{849BA107-CAEE-454F-8730-D4E58ED47819}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "actions", "actions", "{F1288C79-F5EF-4C62-816C-6E1B6DF63514}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\notification.api.yml = .github\workflows\notification.api.yml
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Notification.Api", "src\Notification.Api\Notification.Api.csproj", "{B635B9E0-A19E-4120-AAAB-C08A9E91B861}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B635B9E0-A19E-4120-AAAB-C08A9E91B861}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B635B9E0-A19E-4120-AAAB-C08A9E91B861}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B635B9E0-A19E-4120-AAAB-C08A9E91B861}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B635B9E0-A19E-4120-AAAB-C08A9E91B861}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B635B9E0-A19E-4120-AAAB-C08A9E91B861} = {849BA107-CAEE-454F-8730-D4E58ED47819}
+	EndGlobalSection
+EndGlobal

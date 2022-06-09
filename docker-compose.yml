@@ -1,11 +1,12 @@
 version: '3.7'
 
 services:
-  notification:
-    container_name: "elwark_notification"
-    image: elwark/notification:${TAG:-latest}
+  notification.api:
+    container_name: "notification_api"
+    image: "elwark/notification/api:${TAG:-latest}"
     build:
-      context: ./
-      dockerfile: Dockerfile
-    ports:
-      - "3001:80"
+      context: .
+      dockerfile: src/Notification.Api/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Kestrel__EndPoints__Grpc__Url=http://+:80

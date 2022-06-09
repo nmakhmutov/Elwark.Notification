@@ -1,0 +1,25 @@
+name: Notification api
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - src/**
+      - .github/workflows/notifications.api.yml
+
+env:
+  SERVICE: notification.api
+
+jobs:
+  BuildContainer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Github Action
+        uses: actions/checkout@master
+
+      - name: Compose build ${{ env.SERVICE }}
+        run: sudo -E docker-compose build ${{ env.SERVICE }}
+        working-directory: ./src
+        shell: bash
