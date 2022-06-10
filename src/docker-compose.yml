@@ -6,7 +6,9 @@ services:
     image: "elwark/notification/api:${TAG:-latest}"
     build:
       context: .
-      dockerfile: src/Notification.Api/Dockerfile
+      dockerfile: Notification.Api/Dockerfile
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+      - Serilog__WriteTo__0__Name=Console
+      - Serilog__WriteTo__0__Args__formatter=Serilog.Formatting.Compact.RenderedCompactJsonFormatter, Serilog.Formatting.Compact
       - Kestrel__EndPoints__Grpc__Url=http://+:80
