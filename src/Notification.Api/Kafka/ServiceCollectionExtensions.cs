@@ -1,7 +1,7 @@
 using Confluent.Kafka;
+using Microsoft.Extensions.Options;
 using Notification.Api.Integration;
 using Notification.Api.Kafka;
-using Microsoft.Extensions.Options;
 
 // ReSharper disable once CheckNamespace
 namespace Microsoft.Extensions.DependencyInjection;

@@ -45,7 +45,7 @@ internal sealed class KafkaMessageBus : IIntegrationEventBus
         await _policy.ExecuteAsync(token => producer.ProduceAsync(message, token), ct)
             .ConfigureAwait(false);
 
-        _logger.LogInformation("Kafka message {t} sent.", type.Name);
+        _logger.LogInformation("Kafka message {m} sent.", message);
     }
 
     public Task PublishAsync<T>(IEnumerable<T> messages, CancellationToken ct) where T : IIntegrationEvent =>

@@ -30,35 +30,37 @@ internal sealed class KafkaConsumer<Event, Handler> : BackgroundService
 
         _policy = Policy
             .Handle<Exception>()
-            .WaitAndRetryAsync(_handlerOptions.RetryCount, _ => _handlerOptions.RetryInterval, (ex, time, retry, _) =>
-            {
-                var level = retry > _handlerOptions.RetryCount * 0.5
-                    ? LogLevel.Critical
-                    : LogLevel.Warning;
-
-                _logger.Log(level, ex, "Error occured in kafka handler for {N}. Retry {R}. Time {T}",
-                    _handlerOptions.MessageType.Name, retry, time);
-            });
+            .WaitAndRetryAsync(
+                _handlerOptions.RetryCount,
+                _ => _handlerOptions.RetryInterval,
+                (ex, time, retry, _) =>
+                    _logger.LogCritical(ex, "Error occured in kafka handler for {N}. Retry {R} ({T})",
+                        _handlerOptions.EventName, retry, time)
+            );
     }
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        ct.Register(() => _logger.LogInformation("{N} consumer shutting down...", _handlerOptions.MessageType.Name));
-
-        await CreateTopicIfNotExistsAsync();
-
         switch (_handlerOptions.Threads)
         {
             case 0:
-                _logger.LogWarning("{N} consumer doesn't have any threads", _handlerOptions.MessageType.Name);
+                _logger.LogWarning("Topic ({T}) doesn't have any consumer handlers for messages ({M})",
+                    _handlerOptions.Topic, _handlerOptions.EventName);
                 break;
 
             case 1:
-                await CreateConsumer(ct).ConfigureAwait(false);
+                await CreateTopicIfNotExistsAsync();
+                await Task.Factory.StartNew(() => CreateConsumer(ct), TaskCreationOptions.LongRunning);
                 break;
 
             default:
-                await Task.WhenAll(Enumerable.Range(0, _handlerOptions.Threads).Select(_ => CreateConsumer(ct)));
+                await CreateTopicIfNotExistsAsync();
+
+                var tasks = new Task[_handlerOptions.Threads];
+                for (var i = 0; i < _handlerOptions.Threads; i++)
+                    tasks[i] = Task.Factory.StartNew(() => CreateConsumer(ct), TaskCreationOptions.LongRunning);
+
+                await Task.WhenAll(tasks);
                 break;
         }
     }
@@ -71,59 +73,58 @@ internal sealed class KafkaConsumer<Event, Handler> : BackgroundService
         using var consumer = builder.Build();
         consumer.Subscribe(_handlerOptions.Topic);
 
-        _logger.LogInformation("Topic {T} with messages {N} handling by {C}",
-            _handlerOptions.Topic,
-            _handlerOptions.MessageType.Name,
-            consumer.Name
-        );
+        _logger.LogInformation("Topic {T}. Consumer {C}. Message {M}. Subscribed.",
+            _handlerOptions.Topic, consumer.MemberId, _handlerOptions.EventName);
+
+        ct.Register(() => _logger.LogInformation("Topic {T}. Consumer {C}. Message {M}. Stopping...",
+            _handlerOptions.Topic, consumer.MemberId, _handlerOptions.EventName));
 
         while (!ct.IsCancellationRequested)
-            try
-            {
-                var result = consumer.Consume(ct);
-                if (result.IsPartitionEOF)
-                    continue;
+            await ConsumeAsync(consumer, ct);
+    }
 
-                _logger.LogInformation("{N} received {E} from topic {T}. {M}", consumer.Name,
-                    _handlerOptions.MessageType.Name, _handlerOptions.Topic, result.Message.Value);
+    private async Task ConsumeAsync(IConsumer<string, Event> consumer, CancellationToken ct)
+    {
+        try
+        {
+            var result = consumer.Consume(ct);
+            if (result.IsPartitionEOF)
+                return;
 
-                await using var scope = _serviceFactory.CreateAsyncScope();
-                var handler = scope.ServiceProvider.GetRequiredService<IKafkaHandler<Event>>();
+            _logger.LogInformation("Topic {T}. Consumer {C}. Message {M}. Handling...",
+                _handlerOptions.Topic, consumer.MemberId, _handlerOptions.EventName);
 
-                await _policy.ExecuteAsync(() => handler.HandleAsync(result.Message.Value))
-                    .ConfigureAwait(false);
+            await using var scope = _serviceFactory.CreateAsyncScope();
+            var handler = scope.ServiceProvider.GetRequiredService<IKafkaHandler<Event>>();
 
-                _logger.LogInformation("{N} handled {E} from topic {T}", consumer.Name,
-                    _handlerOptions.MessageType.Name, _handlerOptions.Topic);
+            await _policy.ExecuteAsync(() => handler.HandleAsync(result.Message.Value));
 
-                consumer.Commit(result);
-            }
-            catch (OperationCanceledException ex)
-            {
-                _logger.LogWarning(ex, "Consumer {N} for message {M} canceled", consumer.Name,
-                    _handlerOptions.MessageType.Name);
+            _logger.LogInformation("Topic {T}. Consumer {C}. Message {M}. Handled.",
+                _handlerOptions.Topic, consumer.MemberId, _handlerOptions.EventName);
 
-                break;
-            }
-            catch (ConsumeException ex)
-            {
-                _logger.LogWarning(ex, "Consumer exception in {N} for message {M}", consumer.Name,
-                    _handlerOptions.MessageType.Name);
+            consumer.Commit(result);
+        }
+        catch (OperationCanceledException ex)
+        {
+            consumer.Close();
+            _logger.LogWarning(ex, "Topic {T}. Consumer {C}. Message {M}. Canceled.",
+                _handlerOptions.Topic, consumer.MemberId, _handlerOptions.EventName);
 
-                if (!ex.Error.IsFatal)
-                    continue;
+            throw;
+        }
+        catch (ConsumeException ex) when (ex.Error.IsFatal)
+        {
+            _logger.LogCritical(ex, "Topic {T}. Consumer {C}. Message {M}. Consumer exception has occured. Stopping...",
+                _handlerOptions.Topic, consumer.MemberId, _handlerOptions.EventName);
+            _application.StopApplication();
 
-                _logger.LogCritical(ex, "Consumer exception is fatal. Application will stop");
-                _application.StopApplication();
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogCritical(ex, "Unhandled exception has occured in kafka message consumer");
-            }
-
-        consumer.Close();
-        consumer.Dispose();
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogCritical(ex, "Topic {T}. Consumer {C}. Message {M}. Unhandled exception has occured.",
+                _handlerOptions.Topic, consumer.MemberId, _handlerOptions.EventName);
+        }
     }
 
     private async Task CreateTopicIfNotExistsAsync()
@@ -141,8 +142,7 @@ internal sealed class KafkaConsumer<Event, Handler> : BackgroundService
 
         try
         {
-            await client.CreateTopicsAsync(new[] { topic })
-                .ConfigureAwait(false);
+            await client.CreateTopicsAsync(new[] { topic });
 
             _logger.LogInformation("Topic {T} created with {P} partitions", topic.Name, topic.NumPartitions);
         }
@@ -154,6 +154,8 @@ internal sealed class KafkaConsumer<Event, Handler> : BackgroundService
         {
             _logger.LogCritical(ex, "Exception occured on kafka topic creation");
             _application.StopApplication();
+
+            throw;
         }
     }
 }
