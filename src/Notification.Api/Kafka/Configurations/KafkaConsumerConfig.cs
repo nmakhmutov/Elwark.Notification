@@ -1,8 +1,9 @@
-namespace Notification.Api.Kafka;
+namespace Notification.Api.Kafka.Configurations;
 
 public sealed record KafkaConsumerConfig<T>
 {
-    public string EventName { get; } = typeof(T).Name;
+    public string EventName =>
+        typeof(T).Name;
 
     public string Topic { get; set; } = string.Empty;
 

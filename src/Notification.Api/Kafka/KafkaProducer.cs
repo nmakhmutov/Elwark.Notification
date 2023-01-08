@@ -1,6 +1,7 @@
 using Confluent.Kafka;
 using Microsoft.Extensions.Options;
 using Notification.Api.Integration;
+using Notification.Api.Kafka.Configurations;
 
 namespace Notification.Api.Kafka;
 

@@ -2,6 +2,8 @@ using Confluent.Kafka;
 using Microsoft.Extensions.Options;
 using Notification.Api.Integration;
 using Notification.Api.Kafka;
+using Notification.Api.Kafka.Configurations;
+using Notification.Api.Kafka.Converters;
 
 // ReSharper disable once CheckNamespace
 namespace Microsoft.Extensions.DependencyInjection;
@@ -15,7 +17,7 @@ public static class ServiceCollectionExtensions
         builder.Services
             .Configure(producer)
             .Configure(consumer)
-            .AddSingleton<IIntegrationEventBus, KafkaMessageBus>();
+            .AddSingleton<IIntegrationEventBus, KafkaEventBus>();
 
         return builder;
     }
@@ -65,11 +67,11 @@ public static class ServiceCollectionExtensions
 
     public static IKafkaBuilder AddConsumer<E, H>(this IKafkaBuilder builder, Action<KafkaConsumerConfig<E>> config)
         where E : IIntegrationEvent
-        where H : class, IKafkaHandler<E>
+        where H : class, IIntegrationEventHandler<E>
     {
         builder.Services
             .Configure(config)
-            .AddTransient<IKafkaHandler<E>, H>()
+            .AddTransient<IIntegrationEventHandler<E>, H>()
             .AddHostedService<KafkaConsumer<E, H>>();
 
         return builder;

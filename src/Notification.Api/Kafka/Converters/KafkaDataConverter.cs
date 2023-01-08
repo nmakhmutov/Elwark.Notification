@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using Confluent.Kafka;
 using Notification.Api.Integration;
 
-namespace Notification.Api.Kafka;
+namespace Notification.Api.Kafka.Converters;
 
 internal sealed class KafkaDataConverter<T> : ISerializer<T>, IDeserializer<T>
     where T : IIntegrationEvent

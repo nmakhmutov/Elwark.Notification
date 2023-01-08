@@ -4,15 +4,15 @@ using Notification.Api.Infrastructure.Provider;
 using Notification.Api.Infrastructure.Provider.Gmail;
 using Notification.Api.Infrastructure.Provider.SendGrid;
 using Notification.Api.Infrastructure.Repositories;
+using Notification.Api.Integration;
 using Notification.Api.IntegrationEvents.Events;
-using Notification.Api.Kafka;
 using Notification.Api.Models;
 using Polly;
 using Polly.Retry;
 
 namespace Notification.Api.IntegrationEvents.EventHandling;
 
-internal sealed class EmailMessageCreatedHandler : IKafkaHandler<EmailCreatedIntegrationEvent>
+internal sealed class EmailMessageCreatedHandler : IIntegrationEventHandler<EmailCreatedIntegrationEvent>
 {
     private readonly AsyncRetryPolicy<IEmailSender?> _policy;
     private readonly IEmailProviderRepository _repository;

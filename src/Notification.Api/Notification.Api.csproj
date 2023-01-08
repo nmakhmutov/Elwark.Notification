@@ -1,25 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
-    <PropertyGroup>
-        <TargetFramework>net7.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <Protobuf Include="Protos\notification.proto" GrpcServices="Server" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <PackageReference Include="Confluent.Kafka" Version="1.9.2" />
-        <PackageReference Include="GrpcExtensions.AspNetCore.Validation" Version="2.25.6" />
-        <PackageReference Include="MongoDB.Driver" Version="2.17.1" />
-        <PackageReference Include="Grpc.AspNetCore" Version="2.48.0" />
-        <PackageReference Include="CorrelationId" Version="3.0.1" />
-        <PackageReference Include="Polly" Version="7.2.3" />
-        <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.4.0" />
-        <PackageReference Include="Quartz.Extensions.Hosting" Version="3.4.0" />
-        <PackageReference Include="Serilog.AspNetCore" Version="6.0.1" />
-    </ItemGroup>
-
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Protobuf Include="Protos\notification.proto" GrpcServices="Server" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" Version="1.9.3" />
+    <PackageReference Include="CorrelationId" Version="3.0.1" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.51.0" />
+    <PackageReference Include="GrpcExtensions.AspNetCore.Validation" Version="2.25.6" />
+    <PackageReference Include="MongoDB.Driver" Version="2.18.0" />
+    <PackageReference Include="Polly" Version="7.2.3" />
+    <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.5.0" />
+    <PackageReference Include="Quartz.Extensions.Hosting" Version="3.5.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="6.1.0" />
+  </ItemGroup>
 </Project>
