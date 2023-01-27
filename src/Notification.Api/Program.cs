@@ -1,6 +1,4 @@
 using System.Net.Http.Headers;
-using CorrelationId;
-using CorrelationId.DependencyInjection;
 using Notification.Api.Grpc;
 using Notification.Api.Infrastructure;
 using Notification.Api.Infrastructure.Provider;
@@ -11,6 +9,7 @@ using Notification.Api.IntegrationEvents.EventHandling;
 using Notification.Api.IntegrationEvents.Events;
 using Notification.Api.Job;
 using Grpc.AspNetCore.FluentValidation;
+using Grpc.AspNetCore.Server;
 using Quartz;
 using Serilog;
 
@@ -18,12 +17,7 @@ const string appName = "Notification.Api";
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
-    .AddCorrelationId(options =>
-    {
-        options.UpdateTraceIdentifier = true;
-        options.AddToLoggingScope = true;
-    })
-    .WithTraceIdentifierProvider();
+    .AddCorrelationId(options => options.UpdateTraceIdentifier = true);
 
 builder.Services
     .AddSingleton(_ => new NotificationDbContext(new MongoDbOptions
@@ -80,7 +74,11 @@ builder.Services
     })
     .AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
-builder.Services.AddGrpc(options => options.EnableMessageValidation());
+builder.Services.AddGrpc(options =>
+{
+    options.UseCorrelationId();
+    options.EnableMessageValidation();
+});
 
 builder.Host
     .UseSerilog((context, configuration) => configuration
@@ -96,8 +94,6 @@ using (var scope = app.Services.CreateScope())
 
     await new NotificationDbContextSeed(context).SeedAsync();
 }
-
-app.UseCorrelationId();
 
 app.MapGrpcService<NotificationService>();
 

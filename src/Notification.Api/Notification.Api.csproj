@@ -8,8 +8,9 @@
     <Protobuf Include="Protos\notification.proto" GrpcServices="Server" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Confluent.Kafka" Version="1.9.3" />
-    <PackageReference Include="CorrelationId" Version="3.0.1" />
+    <PackageReference Include="Confluent.Kafka" Version="2.0.2" />
+    <PackageReference Include="Elwark.CorrelationId" Version="1.0.0" />
+    <PackageReference Include="Elwark.CorrelationId.Grpc" Version="1.0.0" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.51.0" />
     <PackageReference Include="GrpcExtensions.AspNetCore.Validation" Version="2.25.6" />
     <PackageReference Include="MongoDB.Driver" Version="2.18.0" />
