@@ -16,17 +16,17 @@ internal sealed class GmailProvider : IEmailSender
 
     public async Task SendEmailAsync(MailAddress email, string subject, string body, CancellationToken ct)
     {
-        using var message = new MailMessage(_userName, email.Address, subject, body)
-        {
-            IsBodyHtml = true
-        };
-
         using var smtp = new SmtpClient("smtp.gmail.com", 587)
         {
             Credentials = new NetworkCredential(_userName, _password),
             EnableSsl = true,
             DeliveryMethod = SmtpDeliveryMethod.Network,
             UseDefaultCredentials = false
+        };
+
+        using var message = new MailMessage(_userName, email.Address, subject, body)
+        {
+            IsBodyHtml = true
         };
 
         await smtp.SendMailAsync(message, ct);

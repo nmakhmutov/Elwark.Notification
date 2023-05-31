@@ -2,11 +2,11 @@ namespace Notification.Api.Models;
 
 public sealed class Gmail : EmailProvider
 {
-    public Gmail(int limit, int balance)
+    public Gmail(uint limit, uint balance)
         : base(Type.Gmail, limit, balance)
     {
-        var date = DateTime.Today;
-        UpdateAt = new DateTime(date.Year, date.Month, date.Day, 0, 0, 0, DateTimeKind.Utc).AddDays(1);
+        UpdateAt = DateOnly.FromDateTime(DateTime.Today).AddDays(1);
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public override void UpdateBalance()

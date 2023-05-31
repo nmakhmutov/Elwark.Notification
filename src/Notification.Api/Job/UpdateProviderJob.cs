@@ -22,15 +22,16 @@ public sealed class UpdateProviderJob : IJob
         _repository = repository;
         _logger = logger;
         _dbContext = dbContext;
-        _policy = Policy
-            .Handle<MongoException>()
+        _policy = Policy.Handle<MongoException>()
             .RetryForeverAsync();
     }
 
     public async Task Execute(IJobExecutionContext context)
     {
+        var date = DateOnly.FromDateTime(DateTime.UtcNow);
+
         var filter = Builders<EmailProvider>.Filter.And(
-            Builders<EmailProvider>.Filter.Lt(x => x.UpdateAt, DateTime.UtcNow),
+            Builders<EmailProvider>.Filter.Lt(x => x.UpdateAt, date),
             Builders<EmailProvider>.Filter.Eq(x => x.IsEnabled, true)
         );
 
@@ -51,7 +52,7 @@ public sealed class UpdateProviderJob : IJob
                 await _repository.UpdateAsync(provider);
             });
 
-            _logger.LogInformation("Provider '{P}' expired event sent", id);
+            _logger.LogInformation("Provider {P} balance updated", id);
         }
     }
 }

@@ -12,3 +12,5 @@ services:
       - Serilog__WriteTo__0__Name=Console
       - Serilog__WriteTo__0__Args__formatter=Serilog.Formatting.Compact.RenderedCompactJsonFormatter, Serilog.Formatting.Compact
       - Kestrel__EndPoints__Grpc__Url=http://+:80
+      - ConnectionStrings__Mongodb=mongodb://mongo-1,mongo-2,mongo-3/notification?replicaSet=rs0
+      - ConnectionStrings__Kafka=broker:29092

@@ -32,9 +32,11 @@ public sealed class PostponedEmailJob : IJob
             foreach (var email in cursor.Current)
             {
                 var evt = new EmailCreatedIntegrationEvent(Guid.NewGuid(), now, email.Email, email.Subject, email.Body);
+                
                 await _bus.PublishAsync(evt, context.CancellationToken);
 
-                await _dbContext.PostponedEmails.DeleteOneAsync(x => x.Id == email.Id, context.CancellationToken);
+                await _dbContext.PostponedEmails
+                    .DeleteOneAsync(x => x.Id == email.Id, context.CancellationToken);
             }
     }
 }

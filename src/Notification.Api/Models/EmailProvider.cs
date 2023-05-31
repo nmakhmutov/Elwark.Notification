@@ -10,25 +10,26 @@ public abstract class EmailProvider
         Gmail = 2
     }
 
-    protected EmailProvider(Type type, int limit, int balance)
+    protected EmailProvider(Type type, uint limit, uint balance)
     {
         Id = type;
-        Version = int.MinValue;
         Limit = limit;
         Balance = balance;
-        UpdatedAt = UpdateAt = DateTime.UtcNow;
         IsEnabled = true;
+        Version = uint.MinValue;
+        UpdateAt = DateOnly.MinValue;
+        UpdatedAt = DateTime.MinValue;
     }
 
     public Type Id { get; protected set; }
 
-    public int Version { get; set; }
+    public uint Version { get; set; }
 
-    public int Limit { get; protected set; }
+    public uint Limit { get; protected set; }
 
-    public int Balance { get; protected set; }
+    public uint Balance { get; protected set; }
 
-    public DateTime UpdateAt { get; protected set; }
+    public DateOnly UpdateAt { get; protected set; }
 
     public DateTime UpdatedAt { get; protected set; }
 
@@ -38,7 +39,7 @@ public abstract class EmailProvider
 
     public void DecreaseBalance()
     {
-        if (Balance <= 0)
+        if (Balance == 0)
             throw new Exception($"'{Id}' balance is empty");
 
         Balance--;

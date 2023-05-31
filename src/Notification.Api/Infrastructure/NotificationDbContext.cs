@@ -1,5 +1,7 @@
 ﻿using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
+using Notification.Api.Infrastructure.BsonSerializers;
 using Notification.Api.Models;
 
 namespace Notification.Api.Infrastructure;
@@ -13,22 +15,30 @@ public sealed class NotificationDbContext
             map.AutoMap();
             map.MapIdProperty(x => x.Id);
         });
+        
+        BsonSerializer.RegisterSerializer(new DateOnlySerializer());
 
         BsonClassMap.RegisterClassMap<Sendgrid>();
         BsonClassMap.RegisterClassMap<Gmail>();
     }
 
-    public NotificationDbContext(MongoDbOptions settings)
+    public NotificationDbContext(MongoUrl url)
     {
-        var mongoSettings = MongoClientSettings.FromUrl(new MongoUrl(settings.ConnectionString));
+        ArgumentNullException.ThrowIfNull(url, nameof(url));
+        ArgumentException.ThrowIfNullOrEmpty(url.DatabaseName, nameof(url.DatabaseName));
 
-        // mongoSettings.ClusterConfigurator = builder =>
-        //     builder.Subscribe<MongoDB.Driver.Core.Events.CommandStartedEvent>(e =>
-        //         System.Console.WriteLine(MongoDB.Bson.BsonExtensionMethods.ToJson(e.Command,
-        //             new MongoDB.Bson.IO.JsonWriterSettings {Indent = true})));
+        var settings = MongoClientSettings.FromUrl(url);
+        settings.LinqProvider = LinqProvider.V2;
+        settings.MinConnectionPoolSize = 1;
+        settings.MaxConnectionPoolSize = 30;
 
-        var client = new MongoClient(mongoSettings);
-        Database = client.GetDatabase(settings.Database);
+        // settings.ClusterConfigurator = builder =>
+        // builder.Subscribe<MongoDB.Driver.Core.Events.CommandStartedEvent>(e =>
+        // Console.WriteLine(MongoDB.Bson.BsonExtensionMethods.ToJson(e.Command,
+        // new MongoDB.Bson.IO.JsonWriterSettings { Indent = true })));
+
+        var client = new MongoClient(settings);
+        Database = client.GetDatabase(url.DatabaseName);
     }
 
     public IMongoDatabase Database { get; }

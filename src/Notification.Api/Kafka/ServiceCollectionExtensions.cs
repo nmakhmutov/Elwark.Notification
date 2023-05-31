@@ -1,77 +1,57 @@
-using Confluent.Kafka;
-using Microsoft.Extensions.Options;
 using Notification.Api.Integration;
 using Notification.Api.Kafka;
 using Notification.Api.Kafka.Configurations;
-using Notification.Api.Kafka.Converters;
+using Notification.Api.Kafka.Producers;
 
 // ReSharper disable once CheckNamespace
 namespace Microsoft.Extensions.DependencyInjection;
 
 public static class ServiceCollectionExtensions
 {
-    private static IKafkaBuilder AddKafkaMessageBus(this IServiceCollection services, Action<ProducerConfig> producer,
-        Action<ConsumerConfig> consumer)
+    public static IKafkaBuilder AddKafka(this IServiceCollection services, string servers)
     {
-        var builder = new KafkaBuilder(services);
+        var builder = new KafkaBuilder(services, servers);
+
         builder.Services
-            .Configure(producer)
-            .Configure(consumer)
             .AddSingleton<IIntegrationEventBus, KafkaEventBus>();
 
         return builder;
     }
 
-    public static IKafkaBuilder AddKafkaMessageBus(this IServiceCollection services, string appName, string servers)
-    {
-        void Producer(ProducerConfig config)
-        {
-            config.BootstrapServers = servers;
-            config.Acks = Acks.All;
-        }
-
-        void Consumer(ConsumerConfig config)
-        {
-            config.BootstrapServers = servers;
-
-            config.GroupId = appName;
-            config.AutoOffsetReset = AutoOffsetReset.Earliest;
-            config.EnableAutoCommit = false;
-            config.EnablePartitionEof = false;
-        }
-
-        return AddKafkaMessageBus(services, Producer, Consumer);
-    }
-
-    public static IKafkaBuilder AddProducer<T>(this IKafkaBuilder builder, Action<KafkaProducerConfig<T>> config)
+    public static IKafkaBuilder AddProducer<T>(this IKafkaBuilder builder,
+        Action<ProducerConfigurationBuilder> producer)
         where T : IIntegrationEvent
     {
+        var configuration = new ProducerConfigurationBuilder();
+        producer.Invoke(configuration);
+
         builder.Services
-            .Configure(config)
-            .AddSingleton<IKafkaProducer<T>, KafkaProducer<T>>()
-            .AddSingleton(sp =>
+            .AddSingleton<IKafkaProducer<T>>(sp =>
             {
-                var options = sp.GetRequiredService<IOptions<ProducerConfig>>();
                 var logger = sp.GetRequiredService<ILogger<IKafkaProducer<T>>>();
-
-                var producer = new ProducerBuilder<string, T>(options.Value)
-                    .SetErrorHandler((_, error) => logger.LogError("Error occured on publishing {R}", error.Reason))
-                    .SetKeySerializer(KafkaKeyConverter.Instance)
-                    .SetValueSerializer(KafkaDataConverter<T>.Instance);
-
-                return producer.Build();
+                return new KafkaProducer<T>(configuration.Build(builder.Brokers), logger);
             });
 
         return builder;
     }
 
-    public static IKafkaBuilder AddConsumer<E, H>(this IKafkaBuilder builder, Action<KafkaConsumerConfig<E>> config)
+    public static IKafkaBuilder AddConsumer<E, H>(this IKafkaBuilder builder,
+        Action<ConsumerConfigurationBuilder> consumer)
         where E : IIntegrationEvent
         where H : class, IIntegrationEventHandler<E>
     {
+        var configuration = new ConsumerConfigurationBuilder();
+        consumer.Invoke(configuration);
+
         builder.Services
-            .Configure(config)
             .AddTransient<IIntegrationEventHandler<E>, H>()
+            .AddHostedService(sp =>
+            {
+                var factory = sp.GetRequiredService<IServiceScopeFactory>();
+                var logger = sp.GetRequiredService<ILogger<KafkaConsumer<E, H>>>();
+
+                return new KafkaConsumer<E, H>(configuration.Build(builder.Brokers), factory, logger);
+            })
             .AddHostedService<KafkaConsumer<E, H>>();
 
         return builder;

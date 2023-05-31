@@ -22,8 +22,7 @@ internal sealed class EmailMessageCreatedHandler : IIntegrationEventHandler<Emai
     {
         _senders = senders;
         _repository = repository;
-        _policy = Policy<IEmailSender?>
-            .Handle<MongoException>()
+        _policy = Policy<IEmailSender?>.Handle<MongoException>()
             .RetryForeverAsync();
     }
 

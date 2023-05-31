@@ -33,7 +33,8 @@ internal sealed class EmailProviderRepository : IEmailProviderRepository
         ct.ThrowIfCancellationRequested();
 
         entity.Version++;
-        await _dbContext.EmailProviders.InsertOneAsync(entity, new InsertOneOptions(), ct);
+        await _dbContext.EmailProviders
+            .InsertOneAsync(entity, new InsertOneOptions(), ct);
 
         return entity;
     }
@@ -47,12 +48,13 @@ internal sealed class EmailProviderRepository : IEmailProviderRepository
             Builders<EmailProvider>.Filter.Eq(x => x.Version, entity.Version)
         );
 
-        entity.Version = (entity.Version == int.MaxValue ? int.MinValue : entity.Version) + 1;
+        entity.Version = (entity.Version == uint.MaxValue ? uint.MinValue : entity.Version) + 1;
 
-        var result = await _dbContext.EmailProviders.ReplaceOneAsync(filter, entity, new ReplaceOptions(), ct);
+        var result = await _dbContext.EmailProviders
+            .ReplaceOneAsync(filter, entity, new ReplaceOptions(), ct);
 
         if (result.ModifiedCount == 0)
-            throw new MongoException($"Entity with id '{entity.Id}' not updated");
+            throw new MongoClientException($"Entity with id {entity.Id} not updated");
     }
 
     public Task DeleteAsync(EmailProvider.Type key, CancellationToken ct)
@@ -61,6 +63,7 @@ internal sealed class EmailProviderRepository : IEmailProviderRepository
 
         var filter = Builders<EmailProvider>.Filter.Eq(x => x.Id, key);
 
-        return _dbContext.EmailProviders.DeleteOneAsync(filter, new DeleteOptions(), ct);
+        return _dbContext.EmailProviders
+            .DeleteOneAsync(filter, new DeleteOptions(), ct);
     }
 }

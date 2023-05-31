@@ -1,15 +1,16 @@
-using System.Text;
 using Confluent.Kafka;
 
 namespace Notification.Api.Kafka.Converters;
 
-internal sealed class KafkaKeyConverter : ISerializer<string>, IDeserializer<string>
+internal sealed class KafkaKeyConverter :
+    ISerializer<Guid>,
+    IDeserializer<Guid>
 {
     public static KafkaKeyConverter Instance { get; } = new();
 
-    public string Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context) =>
-        Encoding.UTF8.GetString(data);
+    public Guid Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context) =>
+        isNull ? Guid.Empty : new Guid(data);
 
-    public byte[] Serialize(string data, SerializationContext context) =>
-        Encoding.UTF8.GetBytes(data);
+    public byte[] Serialize(Guid data, SerializationContext context) =>
+        data.ToByteArray();
 }

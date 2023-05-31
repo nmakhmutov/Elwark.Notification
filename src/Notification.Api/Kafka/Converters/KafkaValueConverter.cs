@@ -5,20 +5,24 @@ using Notification.Api.Integration;
 
 namespace Notification.Api.Kafka.Converters;
 
-internal sealed class KafkaDataConverter<T> : ISerializer<T>, IDeserializer<T>
+internal sealed class KafkaValueConverter<T> :
+    ISerializer<T>,
+    IDeserializer<T>
     where T : IIntegrationEvent
 {
     private readonly JsonSerializerOptions _options = new()
     {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault
+        PropertyNameCaseInsensitive = false
     };
 
-    private KafkaDataConverter()
+    private KafkaValueConverter()
     {
     }
 
-    public static KafkaDataConverter<T> Instance { get; } = new();
+    public static KafkaValueConverter<T> Instance { get; } = new();
 
     public T Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context) =>
         JsonSerializer.Deserialize<T>(data, _options)!;

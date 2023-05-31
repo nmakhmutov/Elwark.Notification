@@ -10,21 +10,20 @@ using Notification.Api.IntegrationEvents.Events;
 using Notification.Api.Job;
 using Grpc.AspNetCore.FluentValidation;
 using Grpc.AspNetCore.Server;
+using MongoDB.Driver;
 using Quartz;
 using Serilog;
 
 const string appName = "Notification.Api";
+const string topic = "notification.emails.created";
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
     .AddCorrelationId(options => options.UpdateTraceIdentifier = true);
 
 builder.Services
-    .AddSingleton(_ => new NotificationDbContext(new MongoDbOptions
-    {
-        ConnectionString = builder.Configuration["Mongodb:ConnectionString"]!,
-        Database = builder.Configuration["Mongodb:Database"]!
-    }))
+    .AddSingleton(_ => new NotificationDbContext(new MongoUrl(builder.Configuration.GetConnectionString("Mongodb")!)))
     .AddSingleton<IEmailProviderRepository, EmailProviderRepository>();
 
 var assemblies = AppDomain.CurrentDomain.GetAssemblies();
@@ -32,15 +31,15 @@ var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 builder.Services
     .AddValidatorsFromAssemblies(assemblies);
 
-const string topic = "notification.emails.created";
 builder.Services
-    .AddKafkaMessageBus(appName, builder.Configuration["Kafka:Servers"]!)
-    .AddProducer<EmailCreatedIntegrationEvent>(config => config.Topic = topic)
-    .AddConsumer<EmailCreatedIntegrationEvent, EmailMessageCreatedHandler>(config =>
-    {
-        config.Topic = topic;
-        config.Threads = 4;
-    });
+    .AddKafka(builder.Configuration.GetConnectionString("Kafka")!)
+    .AddProducer<EmailCreatedIntegrationEvent>(producer => producer.WithTopic(topic))
+    .AddConsumer<EmailCreatedIntegrationEvent, EmailMessageCreatedHandler>(consumer =>
+        consumer.WithTopic(topic)
+            .WithGroupId(appName)
+            .WithWorkers(4)
+            .CreateTopicIfNotExists(4)
+    );
 
 builder.Services
     .AddTransient<IEmailSender>(_ =>
@@ -61,13 +60,13 @@ builder.Services
         configurator.UseMicrosoftDependencyInjectionJobFactory();
 
         configurator.ScheduleJob<UpdateProviderJob>(trigger => trigger
-            .WithIdentity("UpdateProviderJob")
+            .WithIdentity(nameof(UpdateProviderJob))
             .StartAt(DateBuilder.EvenHourDate(DateTimeOffset.UtcNow))
             .WithSimpleSchedule(scheduleBuilder => scheduleBuilder.WithIntervalInHours(1).RepeatForever())
         );
 
         configurator.ScheduleJob<PostponedEmailJob>(trigger => trigger
-            .WithIdentity("PostponedEmailJob")
+            .WithIdentity(nameof(PostponedEmailJob))
             .StartAt(DateBuilder.EvenMinuteDate(DateTimeOffset.UtcNow))
             .WithSimpleSchedule(scheduleBuilder => scheduleBuilder.WithIntervalInMinutes(1).RepeatForever())
         );
@@ -88,11 +87,12 @@ builder.Host
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+await using (var scope = app.Services.CreateAsyncScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
 
-    await new NotificationDbContextSeed(context).SeedAsync();
+    await new NotificationDbContextSeed(context)
+        .SeedAsync();
 }
 
 app.MapGrpcService<NotificationService>();

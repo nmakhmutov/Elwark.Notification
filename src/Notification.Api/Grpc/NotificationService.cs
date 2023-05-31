@@ -1,5 +1,6 @@
 using FluentValidation;
 using Grpc.Core;
+using MongoDB.Driver;
 using Notification.Api.Infrastructure;
 using Notification.Api.Integration;
 using Notification.Api.IntegrationEvents.Events;
@@ -21,7 +22,14 @@ internal sealed class NotificationService : global::Notification.Grpc.Notificati
 
     public override async Task<EmailReply> SendEmail(SendRequest request, ServerCallContext context)
     {
-        var evt = new EmailCreatedIntegrationEvent(Guid.NewGuid(), DateTime.UtcNow, request.Email, request.Subject, request.Body);
+        var evt = new EmailCreatedIntegrationEvent(
+            Guid.NewGuid(),
+            DateTime.UtcNow,
+            request.Email,
+            request.Subject,
+            request.Body
+        );
+
         await _bus.PublishAsync(evt, context.CancellationToken);
 
         return new EmailReply { Status = EmailReply.Types.Status.Sent };
@@ -29,31 +37,36 @@ internal sealed class NotificationService : global::Notification.Grpc.Notificati
 
     public override async Task<EmailReply> ScheduleEmail(ScheduleRequest request, ServerCallContext context)
     {
-        var delay = CalcDelay(ParseTimeZone(request.UserTimeZone));
-        if (delay.HasValue)
+        if (CalcDelay(ParseTimeZone(request.TimeZone)) is { } delay)
         {
+            var email = new PostponedEmail(request.Email, request.Subject, request.Body, delay);
+
             await _dbContext.PostponedEmails
-                .InsertOneAsync(new PostponedEmail(request.Email, request.Subject, request.Body, delay.Value,
-                    request.UserTimeZone));
+                .InsertOneAsync(email, new InsertOneOptions(), context.CancellationToken);
 
             return new EmailReply { Status = EmailReply.Types.Status.Postponed };
         }
 
-        await _bus.PublishAsync(new EmailCreatedIntegrationEvent(Guid.NewGuid(), DateTime.UtcNow, request.Email,
-            request.Subject, request.Body));
+        var evt = new EmailCreatedIntegrationEvent(
+            Guid.NewGuid(),
+            DateTime.UtcNow,
+            request.Email,
+            request.Subject,
+            request.Body
+        );
+
+        await _bus.PublishAsync(evt, context.CancellationToken);
 
         return new EmailReply { Status = EmailReply.Types.Status.Sent };
     }
-    
+
     private static DateTime? CalcDelay(TimeZoneInfo timezone)
     {
         var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timezone);
         if (local.Hour is >= 9 and < 21)
             return null;
 
-        var date = local.Hour < 9
-            ? local
-            : local.AddDays(1);
+        var date = local.Hour < 9 ? local : local.AddDays(1);
 
         return TimeZoneInfo.ConvertTimeToUtc(new DateTime(date.Year, date.Month, date.Day, 9, 0, 0), timezone);
     }
@@ -86,7 +99,7 @@ public sealed class SendRequestValidator : AbstractValidator<SendRequest>
             .NotEmpty();
     }
 }
-    
+
 public sealed class ScheduleRequestValidator : AbstractValidator<ScheduleRequest>
 {
     public ScheduleRequestValidator()
@@ -101,7 +114,7 @@ public sealed class ScheduleRequestValidator : AbstractValidator<ScheduleRequest
         RuleFor(x => x.Body)
             .NotEmpty();
 
-        RuleFor(x => x.UserTimeZone)
+        RuleFor(x => x.TimeZone)
             .NotEmpty();
     }
 }
