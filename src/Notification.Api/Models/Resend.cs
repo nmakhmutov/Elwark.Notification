@@ -1,15 +1,13 @@
-using SendGrid;
-
 namespace Notification.Api.Models;
 
-public sealed class Sendgrid : EmailProvider
+public sealed class Resend : EmailProvider
 {
-    private Sendgrid()
+    private Resend()
     {
     }
 
-    public Sendgrid(int limit, int balance)
-        : base(Type.Sendgrid, limit, balance)
+    public Resend(int limit, int balance)
+        : base(Type.Resend, limit, balance)
     {
         UpdateAt = DateOnly.FromDateTime(DateTime.Today).AddDays(1);
         UpdatedAt = DateTime.UtcNow;

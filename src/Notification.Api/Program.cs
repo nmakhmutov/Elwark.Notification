@@ -1,83 +1,125 @@
-using System.Net.Http.Headers;
-using Notification.Api.Grpc;
+using DotNetEnv;
+using Duende.AccessTokenManagement;
+using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Notification.Api.Endpoints;
 using Notification.Api.Infrastructure;
+using Notification.Api.Infrastructure.People;
 using Notification.Api.Infrastructure.Provider;
-using Notification.Api.Infrastructure.Provider.Gmail;
-using Notification.Api.Infrastructure.Provider.SendGrid;
 using Notification.Api.Infrastructure.Repositories;
-using Notification.Api.IntegrationEvents.EventHandling;
-using Notification.Api.IntegrationEvents.Events;
 using Notification.Api.Job;
-using Grpc.AspNetCore.FluentValidation;
-using Grpc.AspNetCore.Server;
-using MongoDB.Driver;
 using Quartz;
+using Resend;
+using SendGrid;
 using Serilog;
+using Scalar.AspNetCore;
 
 const string appName = "Notification.Api";
-const string topic = "notification.emails.created";
+
+Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services
-    .AddCorrelationId(options => options.UpdateTraceIdentifier = true);
-
-builder.Services
-    .AddSingleton(_ => new NotificationDbContext(new MongoUrl(builder.Configuration.GetConnectionString("Mongodb")!)))
-    .AddSingleton<IEmailProviderRepository, EmailProviderRepository>();
-
 var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
 builder.Services
+    .AddDbContextFactory<NotificationDbContext>(options =>
+    {
+        options.UseNpgsql(builder.Configuration.GetConnectionString("Postgresql"));
+
+        options.EnableDetailedErrors(builder.Environment.IsDevelopment());
+        options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
+    })
+    .AddScoped(sp => sp.GetRequiredService<IDbContextFactory<NotificationDbContext>>().CreateDbContext())
+    .AddScoped<IEmailProviderRepository, EmailProviderRepository>()
+    .AddScoped<IEmailMessageRepository, EmailMessageRepository>();
+
+builder.Services
+    .AddOpenApi()
     .AddValidatorsFromAssemblies(assemblies);
 
 builder.Services
-    .AddKafka(builder.Configuration.GetConnectionString("Kafka")!)
-    .AddProducer<EmailCreatedIntegrationEvent>(producer => producer.WithTopic(topic))
-    .AddConsumer<EmailCreatedIntegrationEvent, EmailMessageCreatedHandler>(consumer =>
-        consumer.WithTopic(topic)
-            .WithGroupId(appName)
-            .WithWorkers(4)
-            .CreateTopicIfNotExists(4)
-    );
-
-builder.Services
-    .AddTransient<IEmailSender>(_ =>
-        new GmailProvider(builder.Configuration["Gmail:UserName"]!, builder.Configuration["Gmail:Password"]!)
-    );
-
-builder.Services
-    .AddHttpClient<IEmailSender, SendgridProvider>(client =>
+    .AddTransient<IEmailSender, SendgridProvider>(provider =>
     {
-        client.BaseAddress = new Uri(builder.Configuration["Sendgrid:Host"]!);
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", builder.Configuration["Sendgrid:Key"]);
+        var client = new SendGridClient(builder.Configuration["Sendgrid:Key"]);
+        return new SendgridProvider(client, provider.GetRequiredService<ILogger<SendgridProvider>>());
     });
+
+builder.Services
+    .AddTransient<IEmailSender, ResendProvider>()
+    .Configure<ResendClientOptions>(x => x.ApiToken = builder.Configuration["Resend:Key"]!)
+    .AddHttpClient<IResend, ResendClient>();
+
+builder.Services
+    .AddClientCredentialsTokenManagement()
+    .AddClient(ClientCredentialsClientName.Parse("people"), client =>
+    {
+        client.TokenEndpoint = new Uri(builder.Configuration.GetRequiredUri("Authentication:Authority"), "connect/token");
+        client.ClientId = ClientId.Parse(builder.Configuration.GetRequiredString("People:ClientId"));
+        client.ClientSecret = ClientSecret.Parse(builder.Configuration.GetRequiredString("People:ClientSecret"));
+        client.Scope = Scope.Parse(builder.Configuration.GetRequiredString("People:Scope"));
+    });
+
+builder.Services
+    .AddHttpClient<IPeopleApiClient, PeopleApiClient>(client =>
+        client.BaseAddress = builder.Configuration.GetRequiredUri("People:Host")
+    )
+    .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("people"));
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = builder.Configuration.GetRequiredUri("Authentication:Authority").AbsoluteUri;
+        options.Audience = builder.Configuration.GetRequiredString("Authentication:Audience");
+        options.RequireHttpsMetadata = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            NameClaimType = "sub",
+            ClockSkew = TimeSpan.FromSeconds(10)
+        };
+    });
+
+builder.Services
+    .AddAuthorizationBuilder()
+    .AddDefaultPolicy("Default", policy => policy.RequireClaim("scope", "elwark.notification.api"));
 
 builder.Services
     .AddQuartz(configurator =>
     {
-        configurator.UseMicrosoftDependencyInjectionJobFactory();
-
-        configurator.ScheduleJob<UpdateProviderJob>(trigger => trigger
-            .WithIdentity(nameof(UpdateProviderJob))
-            .StartAt(DateBuilder.EvenHourDate(DateTimeOffset.UtcNow))
-            .WithSimpleSchedule(scheduleBuilder => scheduleBuilder.WithIntervalInHours(1).RepeatForever())
+        configurator.ScheduleJob<SendEmailJob>(trigger => trigger
+            .WithIdentity(nameof(SendEmailJob))
+            .StartAt(DateBuilder.NextGivenSecondDate(DateTimeOffset.UtcNow, 0))
+            .WithSimpleSchedule(schedule => schedule
+                .WithIntervalInSeconds(5)
+                .RepeatForever()
+            )
         );
 
-        configurator.ScheduleJob<PostponedEmailJob>(trigger => trigger
-            .WithIdentity(nameof(PostponedEmailJob))
-            .StartAt(DateBuilder.EvenMinuteDate(DateTimeOffset.UtcNow))
-            .WithSimpleSchedule(scheduleBuilder => scheduleBuilder.WithIntervalInMinutes(1).RepeatForever())
+        configurator.ScheduleJob<UpdateProviderBalanceJob>(trigger => trigger
+            .WithIdentity(nameof(UpdateProviderBalanceJob))
+            .StartAt(DateBuilder.NextGivenMinuteDate(DateTimeOffset.UtcNow, 0))
+            .WithSimpleSchedule(schedule => schedule
+                .WithIntervalInHours(1)
+                .RepeatForever()
+            )
+        );
+
+        configurator.ScheduleJob<DeleteCompletedEmailsJob>(trigger => trigger
+            .WithIdentity(nameof(DeleteCompletedEmailsJob))
+            .StartAt(DateBuilder.NextGivenMinuteDate(DateTimeOffset.UtcNow, 10))
+            .WithSimpleSchedule(schedule => schedule
+                .WithIntervalInHours(1)
+                .RepeatForever()
+            )
         );
     })
     .AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
-
-builder.Services.AddGrpc(options =>
-{
-    options.UseCorrelationId();
-    options.EnableMessageValidation();
-});
 
 builder.Host
     .UseSerilog((context, configuration) => configuration
@@ -90,11 +132,22 @@ var app = builder.Build();
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+    await context.Database.MigrateAsync();
 
     await new NotificationDbContextSeed(context)
         .SeedAsync();
 }
 
-app.MapGrpcService<NotificationService>();
+app.UseAuthentication()
+    .UseAuthorization();
 
-app.Run();
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference("/docs");
+}
+
+app.MapEmailEndpoints();
+app.MapUserEndpoints();
+
+await app.RunAsync();

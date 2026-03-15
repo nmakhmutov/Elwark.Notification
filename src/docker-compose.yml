@@ -1,4 +1,9 @@
-version: '3.8'
+name: notification
+
+networks:
+  elwarknetwork:
+    name: elwark_network
+    external: true
 
 services:
   notification.api:
@@ -7,10 +12,26 @@ services:
     build:
       context: .
       dockerfile: Notification.Api/Dockerfile
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Serilog__WriteTo__0__Name=Console
       - Serilog__WriteTo__0__Args__formatter=Serilog.Formatting.Compact.RenderedCompactJsonFormatter, Serilog.Formatting.Compact
-      - Kestrel__EndPoints__Grpc__Url=http://+:80
-      - ConnectionStrings__Mongodb=mongodb://mongo-1,mongo-2,mongo-3/notification?replicaSet=rs0
-      - ConnectionStrings__Kafka=broker:29092
+      - Kestrel__EndPoints__Http__Url=http://+:80
+      - ConnectionStrings__Postgresql=Host=postgresql;Database=elwark_notification;Username=master_account;Password=master_password;Pooling=true;Maximum Pool Size=5
+      - Authentication__Authority=http://elwark_identity_api
+      - Authentication__Audience=elwark.notification.api
+      - People__Host=http://elwark_people_api
+      - People__ClientId=elwark.notification.api
+      - People__ClientSecret=secret
+      - People__Scope=elwark.people
+    env_file:
+      - Notification.Api/.env
+    ports:
+      - "5004:80"
+    networks:
+      - elwarknetwork

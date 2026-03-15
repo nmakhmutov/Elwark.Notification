@@ -1,0 +1,48 @@
+@host = http://localhost:5004
+@authority = http://localhost:5000
+@email = makhmutov.nail@outlook.com
+
+###
+POST {{authority}}/connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=elwark.people.api&client_secret=secret&scope=elwark.notification.api
+
+> {%
+client.global.set("access_token", response.body.access_token);
+%}
+
+### Send email by address (plain text)
+POST {{host}}/emails/{{email}}?subject=Hello
+Content-Type: text/plain
+Authorization: Bearer {{access_token}}
+
+Hello, this is a plain text email body.
+
+### Send email by address (html)
+POST {{host}}/emails/{{email}}?subject=Hello
+Content-Type: text/html
+Authorization: Bearer {{access_token}}
+
+<h1>Hello</h1><p>This is an HTML email body.</p>
+
+### Schedule email by address
+POST {{host}}/emails/{{email}}/schedule?subject=Scheduled+Hello&timezone=Europe/London
+Content-Type: text/plain
+Authorization: Bearer {{access_token}}
+
+This email will be sent during working hours in the specified timezone.
+
+### Send email by user id
+POST {{host}}/users/1?subject=Hello
+Content-Type: text/plain
+Authorization: Bearer {{access_token}}
+
+Hello user.
+
+### Schedule email by user id
+POST {{host}}/users/123/schedule?subject=Scheduled+Hello&timezone=Europe/London
+Content-Type: text/plain
+Authorization: Bearer {{access_token}}
+
+Hello user, scheduled.

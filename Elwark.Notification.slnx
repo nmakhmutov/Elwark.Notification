@@ -1,0 +1,9 @@
+<Solution>
+    <Folder Name="/config/">
+        <File Path=".github/workflows/notification.api.yml"/>
+        <File Path="src/docker-compose.yml"/>
+    </Folder>
+    <Folder Name="/src/">
+        <Project Path="src/Notification.Api/Notification.Api.csproj"/>
+    </Folder>
+</Solution>

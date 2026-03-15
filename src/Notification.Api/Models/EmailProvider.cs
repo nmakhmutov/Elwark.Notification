@@ -1,5 +1,3 @@
-// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
-
 namespace Notification.Api.Models;
 
 public abstract class EmailProvider
@@ -7,33 +5,37 @@ public abstract class EmailProvider
     public enum Type
     {
         Sendgrid = 1,
-        Gmail = 2
+        Resend = 2
     }
 
-    protected EmailProvider(Type type, uint limit, uint balance)
+    protected EmailProvider()
     {
-        Id = type;
+    }
+
+    protected EmailProvider(Type id, int limit, int balance)
+    {
+        Id = id;
         Limit = limit;
         Balance = balance;
         IsEnabled = true;
-        Version = uint.MinValue;
+        Version = 0;
         UpdateAt = DateOnly.MinValue;
         UpdatedAt = DateTime.MinValue;
     }
 
     public Type Id { get; protected set; }
 
-    public uint Version { get; set; }
+    public int Limit { get; protected set; }
 
-    public uint Limit { get; protected set; }
+    public int Balance { get; protected set; }
 
-    public uint Balance { get; protected set; }
+    public bool IsEnabled { get; protected set; }
 
     public DateOnly UpdateAt { get; protected set; }
 
     public DateTime UpdatedAt { get; protected set; }
 
-    public bool IsEnabled { get; protected set; }
+    public uint Version { get; set; }
 
     public abstract void UpdateBalance();
 

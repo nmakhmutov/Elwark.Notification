@@ -4,5 +4,5 @@ namespace Notification.Api.Infrastructure.Provider;
 
 public interface IEmailSender
 {
-    public Task SendEmailAsync(MailAddress email, string subject, string body, CancellationToken ct = default);
+    public Task SendAsync(MailAddress email, string subject, string body, bool isHtml, CancellationToken ct = default);
 }

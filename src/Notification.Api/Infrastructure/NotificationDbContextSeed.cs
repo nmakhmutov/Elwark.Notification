@@ -1,4 +1,4 @@
-using MongoDB.Driver;
+using Microsoft.EntityFrameworkCore;
 using Notification.Api.Models;
 
 namespace Notification.Api.Infrastructure;
@@ -10,18 +10,14 @@ internal sealed class NotificationDbContextSeed
     public NotificationDbContextSeed(NotificationDbContext dbContext) =>
         _dbContext = dbContext;
 
-    public async Task SeedAsync()
+    public async Task SeedAsync(CancellationToken ct = default)
     {
-        var providers = await _dbContext.EmailProviders.Find(FilterDefinition<EmailProvider>.Empty).ToListAsync();
-        var data = new List<EmailProvider>();
+        if (!await _dbContext.EmailProviders.AnyAsync(x => x.Id == EmailProvider.Type.Resend, ct))
+            _dbContext.EmailProviders.Add(new Models.Resend(100, 100));
 
-        if (providers.All(x => x.Id != EmailProvider.Type.Gmail))
-            data.Add(new Gmail(100, 100));
+        if (!await _dbContext.EmailProviders.AnyAsync(x => x.Id == EmailProvider.Type.Sendgrid, ct))
+            _dbContext.EmailProviders.Add(new Sendgrid(100, 100));
 
-        if (providers.All(x => x.Id != EmailProvider.Type.Sendgrid))
-            data.Add(new Sendgrid(100, 100));
-
-        if (data.Count > 0)
-            await _dbContext.EmailProviders.InsertManyAsync(data, new InsertManyOptions());
+        await _dbContext.SaveChangesAsync(ct);
     }
 }
