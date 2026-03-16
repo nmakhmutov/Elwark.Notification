@@ -41,6 +41,8 @@ jobs:
           POSTGRES_DB: elwark_notification
           POSTGRES_USER: master_account
           POSTGRES_PASSWORD: master_password
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
