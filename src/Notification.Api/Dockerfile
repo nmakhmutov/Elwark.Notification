@@ -4,7 +4,7 @@ WORKDIR /app
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . ./
-WORKDIR Notification.Api
+WORKDIR src/Notification.Api
 RUN dotnet publish Notification.Api.csproj -c Release -o /app
 
 FROM build AS publish
