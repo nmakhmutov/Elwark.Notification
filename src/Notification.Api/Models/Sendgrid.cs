@@ -1,5 +1,3 @@
-using SendGrid;
-
 namespace Notification.Api.Models;
 
 public sealed class Sendgrid : EmailProvider

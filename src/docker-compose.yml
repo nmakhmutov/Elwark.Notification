@@ -18,7 +18,7 @@ services:
         limits:
           memory: 128M
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_ENVIRONMENT=Staging
       - Serilog__WriteTo__0__Name=Console
       - Serilog__WriteTo__0__Args__formatter=Serilog.Formatting.Compact.RenderedCompactJsonFormatter, Serilog.Formatting.Compact
       - Kestrel__EndPoints__Http__Url=http://+:80

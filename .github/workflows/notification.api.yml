@@ -7,7 +7,7 @@ on:
       - master
     paths:
       - src/**
-      - .github/workflows/notifications.api.yml
+      - .github/workflows/notification.api.yml
 
 env:
   SERVICE: notification.api
@@ -20,6 +20,8 @@ jobs:
         uses: actions/checkout@master
 
       - name: Compose build ${{ env.SERVICE }}
-        run: sudo -E docker-compose build ${{ env.SERVICE }}
+        run: sudo -E docker compose build ${{ env.SERVICE }} --no-cache
         working-directory: ./src
         shell: bash
+        env:
+          TAG: ${{ github.sha }}

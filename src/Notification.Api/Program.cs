@@ -141,7 +141,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 app.UseAuthentication()
     .UseAuthorization();
 
-if (app.Environment.IsDevelopment())
+if (!app.Environment.IsProduction())
 {
     app.MapOpenApi();
     app.MapScalarApiReference("/docs");

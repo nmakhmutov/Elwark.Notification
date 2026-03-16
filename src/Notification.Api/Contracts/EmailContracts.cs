@@ -9,7 +9,7 @@ public sealed class SendToAddressRequest
     [FromRoute]
     public string Email { get; init; } = string.Empty;
 
-    [FromQuery]
+    [FromQuery(Name = "subject")]
     public string Subject { get; init; } = string.Empty;
 }
 
@@ -18,7 +18,7 @@ public sealed class ScheduleToAddressRequest
     [FromRoute]
     public string Email { get; init; } = string.Empty;
 
-    [FromQuery]
+    [FromQuery(Name = "subject")]
     public string Subject { get; init; } = string.Empty;
 
     [FromQuery(Name = "timezone")]
@@ -30,7 +30,7 @@ public sealed class SendToUserRequest
     [FromRoute]
     public long UserId { get; init; }
 
-    [FromQuery]
+    [FromQuery(Name = "subject")]
     public string Subject { get; init; } = string.Empty;
 }
 
@@ -39,6 +39,6 @@ public sealed class ScheduleToUserRequest
     [FromRoute]
     public long UserId { get; init; }
 
-    [FromQuery]
+    [FromQuery(Name = "subject")]
     public string Subject { get; init; } = string.Empty;
 }

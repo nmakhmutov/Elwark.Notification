@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Notification.Api.Contracts;
 using Notification.Api.Infrastructure.Repositories;
@@ -16,9 +17,11 @@ internal static class EmailEndpoints
             .RequireAuthorization();
 
         emails.MapPost("/", SendEmailAsync)
+            .AcceptsEmailBody()
             .AddEndpointFilter<ValidationFilter<SendToAddressRequest>>();
 
         emails.MapPost("/schedule", ScheduleEmailAsync)
+            .AcceptsEmailBody()
             .AddEndpointFilter<ValidationFilter<ScheduleToAddressRequest>>();
 
         return app;
@@ -53,42 +56,23 @@ internal static class EmailEndpoints
         CancellationToken ct
     )
     {
-        var isHtml = GetIsHtml(request.ContentType);
-        if (!isHtml.HasValue)
-            return TypedResults.BadRequest("Supported content types are text/plain and text/html");
+        return await EmailRequestBody.ReadAsync(request, ct) switch
+        {
+            EmailRequestBody.ReadResult.Fail x => TypedResults.BadRequest(x.Error),
+            EmailRequestBody.ReadResult.Success x => await Success(x),
+            _ => throw new UnreachableException()
+        };
 
-        var body = await ReadBodyAsync(request, ct);
-        if (string.IsNullOrWhiteSpace(body))
-            return TypedResults.BadRequest("Request body is required.");
+        async Task<Accepted<EmailQueueReply>> Success(EmailRequestBody.ReadResult.Success success)
+        {
+            var now = DateTime.UtcNow;
+            var sendAt = EmailScheduleCalculator.CalculateSendAt(now, timezone);
 
-        var now = DateTime.UtcNow;
-        var sendAt = EmailScheduleCalculator.CalculateSendAt(now, timezone);
+            var message = EmailMessage.Create(email, subject, success.Body, success.IsHtml, sendAt);
+            await repository.CreateAsync(message, ct);
 
-        var message = EmailMessage.Create(email, subject, body, isHtml.Value, sendAt);
-        await repository.CreateAsync(message, ct);
-
-        var status = sendAt <= now ? "queued" : "postponed";
-        return TypedResults.Accepted(string.Empty, new EmailQueueReply(status, message.SendAt));
-    }
-
-    private static bool? GetIsHtml(string? contentType)
-    {
-        if (string.IsNullOrWhiteSpace(contentType))
-            return null;
-
-        var mediaType = contentType.Split(';', 2, StringSplitOptions.TrimEntries)[0];
-        if (mediaType.Equals("text/html", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        if (mediaType.Equals("text/plain", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        return null;
-    }
-
-    private static async Task<string> ReadBodyAsync(HttpRequest request, CancellationToken ct)
-    {
-        using var reader = new StreamReader(request.Body);
-        return await reader.ReadToEndAsync(ct);
+            var status = sendAt <= now ? "queued" : "postponed";
+            return TypedResults.Accepted(string.Empty, new EmailQueueReply(status, message.SendAt));
+        }
     }
 }
