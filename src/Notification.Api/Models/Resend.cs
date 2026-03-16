@@ -1,3 +1,5 @@
+using Notification.Api.Extensions;
+
 namespace Notification.Api.Models;
 
 public sealed class Resend : EmailProvider
@@ -9,7 +11,7 @@ public sealed class Resend : EmailProvider
     public Resend(int limit, int balance)
         : base(Type.Resend, limit, balance)
     {
-        UpdateAt = DateOnly.FromDateTime(DateTime.Today).AddDays(1);
+        ResetAt = DateTime.UtcNow.AddDays(1).TruncateToMinute();
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -19,7 +21,7 @@ public sealed class Resend : EmailProvider
             return;
 
         Balance = Limit;
-        UpdateAt = UpdateAt.AddDays(1);
+        ResetAt = ResetAt.AddDays(1).TruncateToMinute();
         UpdatedAt = DateTime.UtcNow;
     }
 }

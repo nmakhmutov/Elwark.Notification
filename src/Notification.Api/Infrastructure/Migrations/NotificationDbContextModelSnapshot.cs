@@ -79,6 +79,8 @@ namespace Notification.Api.Infrastructure.Migrations
 
                     b.HasIndex("Status", "SendAt");
 
+                    b.HasIndex("Status", "UpdatedAt");
+
                     b.ToTable("email_messages", (string)null);
                 });
 
@@ -100,9 +102,9 @@ namespace Notification.Api.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("limit");
 
-                    b.Property<DateOnly>("UpdateAt")
-                        .HasColumnType("date")
-                        .HasColumnName("update_at");
+                    b.Property<DateTime>("ResetAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reset_at");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")

@@ -19,7 +19,7 @@ public abstract class EmailProvider
         Balance = balance;
         IsEnabled = true;
         Version = 0;
-        UpdateAt = DateOnly.MinValue;
+        ResetAt = DateTime.UtcNow;
         UpdatedAt = DateTime.MinValue;
     }
 
@@ -31,7 +31,7 @@ public abstract class EmailProvider
 
     public bool IsEnabled { get; protected set; }
 
-    public DateOnly UpdateAt { get; protected set; }
+    public DateTime ResetAt { get; protected set; }
 
     public DateTime UpdatedAt { get; protected set; }
 

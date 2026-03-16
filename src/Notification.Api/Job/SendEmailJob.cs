@@ -1,5 +1,6 @@
 using System.Net.Mail;
 using Microsoft.EntityFrameworkCore;
+using Notification.Api.Extensions;
 using Notification.Api.Infrastructure.Provider;
 using Notification.Api.Infrastructure.Repositories;
 using Notification.Api.Models;
@@ -32,7 +33,8 @@ internal sealed class SendEmailJob : IJob
 
     public async Task Execute(IJobExecutionContext context)
     {
-        var now = context.FireTimeUtc.UtcDateTime;
+        var now = context.FireTimeUtc.UtcDateTime.CeilingToMinute();
+
         await using var scope = _factory.CreateAsyncScope();
         var providerRepository = scope.ServiceProvider.GetRequiredService<IEmailProviderRepository>();
         var emailRepository = scope.ServiceProvider.GetRequiredService<IEmailMessageRepository>();

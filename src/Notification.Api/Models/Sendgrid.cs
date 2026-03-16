@@ -1,3 +1,5 @@
+using Notification.Api.Extensions;
+
 namespace Notification.Api.Models;
 
 public sealed class Sendgrid : EmailProvider
@@ -9,7 +11,7 @@ public sealed class Sendgrid : EmailProvider
     public Sendgrid(int limit, int balance)
         : base(Type.Sendgrid, limit, balance)
     {
-        UpdateAt = DateOnly.FromDateTime(DateTime.Today).AddDays(1);
+        ResetAt = DateTime.UtcNow.AddDays(1).TruncateToMinute();
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -19,7 +21,7 @@ public sealed class Sendgrid : EmailProvider
             return;
 
         Balance = Limit;
-        UpdateAt = UpdateAt.AddDays(1);
+        ResetAt = ResetAt.AddDays(1).TruncateToMinute();
         UpdatedAt = DateTime.UtcNow;
     }
 }

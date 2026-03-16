@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Notification.Api.Infrastructure.Migrations
 {
     [DbContext(typeof(NotificationDbContext))]
-    [Migration("20260315072153_Init")]
+    [Migration("20260316081643_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -82,6 +82,8 @@ namespace Notification.Api.Infrastructure.Migrations
 
                     b.HasIndex("Status", "SendAt");
 
+                    b.HasIndex("Status", "UpdatedAt");
+
                     b.ToTable("email_messages", (string)null);
                 });
 
@@ -103,9 +105,9 @@ namespace Notification.Api.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("limit");
 
-                    b.Property<DateOnly>("UpdateAt")
-                        .HasColumnType("date")
-                        .HasColumnName("update_at");
+                    b.Property<DateTime>("ResetAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reset_at");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")

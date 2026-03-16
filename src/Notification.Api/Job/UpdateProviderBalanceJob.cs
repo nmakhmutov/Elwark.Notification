@@ -8,7 +8,7 @@ using Quartz;
 namespace Notification.Api.Job;
 
 [DisallowConcurrentExecution]
-internal sealed class UpdateProviderBalanceJob : IJob
+internal sealed partial class UpdateProviderBalanceJob : IJob
 {
     private static readonly AsyncRetryPolicy RetryPolicy = Policy
         .Handle<DbUpdateException>()
@@ -37,11 +37,14 @@ internal sealed class UpdateProviderBalanceJob : IJob
                 if (provider is null)
                     return;
 
+                LogProviderBalanceUpdating(provider.Id, provider.Balance, provider.Limit);
+
                 provider.UpdateBalance();
                 await repository.UpdateAsync(provider, context.CancellationToken);
             });
-
-            _logger.LogInformation("Provider {Provider} balance updated", id);
         }
     }
+
+    [LoggerMessage(LogLevel.Information, "Provider {Provider} balance {Balance} updating with limit {Limit}")]
+    partial void LogProviderBalanceUpdating(EmailProvider.Type provider, int balance, int limit);
 }

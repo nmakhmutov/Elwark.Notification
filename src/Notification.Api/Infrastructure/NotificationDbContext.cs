@@ -8,7 +8,7 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
     public DbSet<EmailProvider> EmailProviders =>
         Set<EmailProvider>();
 
-    public DbSet<EmailMessage> TempEmails =>
+    public DbSet<EmailMessage> EmailMessages =>
         Set<EmailMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>

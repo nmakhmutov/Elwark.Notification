@@ -16,13 +16,13 @@ namespace Notification.Api.Infrastructure.Migrations
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
-                    status = table.Column<int>(type: "integer", nullable: false),
                     email = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
                     subject = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                     body = table.Column<string>(type: "text", nullable: false),
-                    is_html = table.Column<bool>(type: "boolean", nullable: false),
-                    attempts = table.Column<int>(type: "integer", nullable: false),
                     error = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
+                    is_html = table.Column<bool>(type: "boolean", nullable: false),
+                    status = table.Column<int>(type: "integer", nullable: false),
+                    attempts = table.Column<int>(type: "integer", nullable: false),
                     send_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
@@ -40,7 +40,7 @@ namespace Notification.Api.Infrastructure.Migrations
                     limit = table.Column<int>(type: "integer", nullable: false),
                     balance = table.Column<int>(type: "integer", nullable: false),
                     is_enabled = table.Column<bool>(type: "boolean", nullable: false),
-                    update_at = table.Column<DateOnly>(type: "date", nullable: false),
+                    reset_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false)
                 },
@@ -53,6 +53,11 @@ namespace Notification.Api.Infrastructure.Migrations
                 name: "IX_email_messages_status_send_at",
                 table: "email_messages",
                 columns: new[] { "status", "send_at" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_email_messages_status_updated_at",
+                table: "email_messages",
+                columns: new[] { "status", "updated_at" });
         }
 
         /// <inheritdoc />

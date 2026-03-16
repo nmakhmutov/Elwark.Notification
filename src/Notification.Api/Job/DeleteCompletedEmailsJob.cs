@@ -6,7 +6,7 @@ using Quartz;
 namespace Notification.Api.Job;
 
 [DisallowConcurrentExecution]
-internal sealed class DeleteCompletedEmailsJob : IJob
+internal sealed partial class DeleteCompletedEmailsJob : IJob
 {
     private readonly IDbContextFactory<NotificationDbContext> _factory;
     private readonly ILogger<DeleteCompletedEmailsJob> _logger;
@@ -22,11 +22,14 @@ internal sealed class DeleteCompletedEmailsJob : IJob
     {
         await using var dbContext = await _factory.CreateDbContextAsync();
 
-        var deleted = await dbContext.TempEmails
+        var deleted = await dbContext.EmailMessages
             .Where(x => x.Status == EmailMessage.QueueStatus.Completed)
             .ExecuteDeleteAsync(context.CancellationToken);
 
         if (deleted > 0)
-            _logger.LogInformation("Deleted {Count} completed email messages", deleted);
+            LogDeletedCountCompletedEmailMessages(deleted);
     }
+
+    [LoggerMessage(LogLevel.Information, "Deleted {count} completed email messages")]
+    partial void LogDeletedCountCompletedEmailMessages(int count);
 }

@@ -7,7 +7,7 @@ networks:
 
 services:
   notification.api:
-    container_name: "notification_api"
+    container_name: "elwark_notification_api"
     image: "elwark/notification/api:${TAG:-latest}"
     build:
       context: .

@@ -42,19 +42,19 @@ public sealed class EmailMessage
 
     public Guid Id { get; private set; }
 
-    public QueueStatus Status { get; private set; }
-
     public string Email { get; private set; }
 
     public string Subject { get; private set; }
 
     public string Body { get; private set; }
 
+    public string? Error { get; private set; }
+
     public bool IsHtml { get; private set; }
 
-    public int Attempts { get; private set; }
+    public QueueStatus Status { get; private set; }
 
-    public string? Error { get; private set; }
+    public int Attempts { get; private set; }
 
     public DateTime SendAt { get; private set; }
 
@@ -72,6 +72,7 @@ public sealed class EmailMessage
     {
         Status = QueueStatus.Completed;
         UpdatedAt = DateTime.UtcNow;
+        Error = null;
         Attempts++;
     }
 

@@ -13,7 +13,7 @@ internal sealed class EmailMessageRepository : IEmailMessageRepository
 
     public async Task<EmailMessage> CreateAsync(EmailMessage entity, CancellationToken ct)
     {
-        await _dbContext.TempEmails.AddAsync(entity, ct);
+        await _dbContext.EmailMessages.AddAsync(entity, ct);
         await _dbContext.SaveChangesAsync(ct);
 
         return entity;
@@ -23,8 +23,7 @@ internal sealed class EmailMessageRepository : IEmailMessageRepository
     {
         var staleAt = now.Subtract(StaleLockTimeout);
 
-        var email = await _dbContext.TempEmails
-            .OrderBy(x => x.SendAt)
+        var email = await _dbContext.EmailMessages
             .FirstOrDefaultAsync(x =>
                     (x.Status == EmailMessage.QueueStatus.Pending && x.SendAt <= now) ||
                     (x.Status == EmailMessage.QueueStatus.Processing && x.UpdatedAt <= staleAt),
@@ -42,7 +41,7 @@ internal sealed class EmailMessageRepository : IEmailMessageRepository
 
     public async Task RescheduleAsync(Guid id, DateTime sendAt, string? error, CancellationToken ct)
     {
-        var email = await _dbContext.TempEmails
+        var email = await _dbContext.EmailMessages
             .FirstOrDefaultAsync(x => x.Id == id, ct);
 
         if (email is null)
@@ -54,7 +53,7 @@ internal sealed class EmailMessageRepository : IEmailMessageRepository
 
     public async Task CompleteAsync(Guid id, CancellationToken ct)
     {
-        var email = await _dbContext.TempEmails
+        var email = await _dbContext.EmailMessages
             .FirstOrDefaultAsync(x => x.Id == id, ct);
 
         if (email is null)

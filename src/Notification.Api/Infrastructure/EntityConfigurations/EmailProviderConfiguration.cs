@@ -27,8 +27,8 @@ internal sealed class EmailProviderConfiguration : IEntityTypeConfiguration<Emai
             .HasColumnName("is_enabled")
             .IsRequired();
 
-        builder.Property(x => x.UpdateAt)
-            .HasColumnName("update_at")
+        builder.Property(x => x.ResetAt)
+            .HasColumnName("reset_at")
             .IsRequired();
 
         builder.Property(x => x.UpdatedAt)
