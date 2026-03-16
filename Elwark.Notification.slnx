@@ -1,9 +1,13 @@
 <Solution>
     <Folder Name="/config/">
         <File Path=".github/workflows/notification.api.yml"/>
-        <File Path="src/docker-compose.yml"/>
+        <File Path="docker-compose.yml"/>
+        <File Path="docker-compose.override.yml"/>
     </Folder>
     <Folder Name="/src/">
         <Project Path="src/Notification.Api/Notification.Api.csproj"/>
+    </Folder>
+    <Folder Name="/tests/">
+        <Project Path="tests/Notification.Api.Tests/Notification.Api.Tests.csproj"/>
     </Folder>
 </Solution>

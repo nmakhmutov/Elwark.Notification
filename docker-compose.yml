@@ -1,0 +1,8 @@
+name: notification
+
+services:
+  notification.api:
+    image: "elwark/notification/api:${TAG:-latest}"
+    build:
+      context: .
+      dockerfile: src/Notification.Api/Dockerfile

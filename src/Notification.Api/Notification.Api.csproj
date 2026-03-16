@@ -9,6 +9,9 @@
     <None Include=".env.example" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Notification.Api.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.1.1" />
     <PackageReference Include="Duende.AccessTokenManagement" Version="4.1.2" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
@@ -19,6 +22,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.5" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
     <PackageReference Include="Polly" Version="8.6.6" />
     <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.16.1" />

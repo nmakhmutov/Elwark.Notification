@@ -36,6 +36,10 @@ builder.Services
     .AddScoped<IEmailMessageRepository, EmailMessageRepository>();
 
 builder.Services
+    .AddHealthChecks()
+    .AddDbContextCheck<NotificationDbContext>();
+
+builder.Services
     .AddOpenApi()
     .AddValidatorsFromAssemblies(assemblies);
 
@@ -146,6 +150,9 @@ if (!app.Environment.IsProduction())
     app.MapOpenApi();
     app.MapScalarApiReference("/docs");
 }
+
+app.MapHealthChecks("/health")
+    .AllowAnonymous();
 
 app.MapEmailEndpoints();
 app.MapUserEndpoints();

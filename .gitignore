@@ -636,5 +636,4 @@ MigrationBackup/
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
 
-docker-compose.*.yml
 src/Notification.Api/.env
