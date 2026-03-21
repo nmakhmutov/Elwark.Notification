@@ -3,6 +3,9 @@
         <File Path=".github/workflows/notification.api.yml"/>
         <File Path="docker-compose.yml"/>
         <File Path="docker-compose.override.yml"/>
+        <File Path=".editorconfig"/>
+        <File Path="Directory.Build.props"/>
+        <File Path="Directory.Packages.props"/>
     </Folder>
     <Folder Name="/src/">
         <Project Path="src/Notification.Api/Notification.Api.csproj"/>

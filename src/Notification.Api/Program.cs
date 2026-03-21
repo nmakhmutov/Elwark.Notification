@@ -12,9 +12,9 @@ using Notification.Api.Infrastructure.Repositories;
 using Notification.Api.Job;
 using Quartz;
 using Resend;
+using Scalar.AspNetCore;
 using SendGrid;
 using Serilog;
-using Scalar.AspNetCore;
 
 const string appName = "Notification.Api";
 
@@ -32,7 +32,6 @@ builder.Services
         options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
     })
     .AddScoped(sp => sp.GetRequiredService<IDbContextFactory<NotificationDbContext>>().CreateDbContext())
-    .AddScoped<IEmailProviderRepository, EmailProviderRepository>()
     .AddScoped<IEmailMessageRepository, EmailMessageRepository>();
 
 builder.Services
@@ -44,30 +43,40 @@ builder.Services
     .AddValidatorsFromAssemblies(assemblies);
 
 builder.Services
-    .AddTransient<IEmailSender, SendgridProvider>(provider =>
+    .AddScoped<IEmailProvider, ResendEmailProvider>()
+    .Configure<ResendClientOptions>(x => x.ApiToken = builder.Configuration.GetString("Resend:Key"))
+    .AddHttpClient<IResend, ResendClient>();
+
+builder.Services
+    .AddScoped<IEmailProvider>(provider =>
     {
-        var client = new SendGridClient(builder.Configuration["Sendgrid:Key"]);
-        return new SendgridProvider(client, provider.GetRequiredService<ILogger<SendgridProvider>>());
+        var client = new SendGridClient(builder.Configuration.GetString("SendGrid:Key"));
+        return new SendGridEmailProvider(client, provider.GetRequiredService<ILogger<SendGridEmailProvider>>());
     });
 
 builder.Services
-    .AddTransient<IEmailSender, ResendProvider>()
-    .Configure<ResendClientOptions>(x => x.ApiToken = builder.Configuration["Resend:Key"]!)
-    .AddHttpClient<IResend, ResendClient>();
+    .AddScoped<IEmailProvider>(provider => new GmailEmailProvider(
+        builder.Configuration.GetString("Gmail:Username"),
+        builder.Configuration.GetString("Gmail:Key"),
+        provider.GetRequiredService<ILogger<GmailEmailProvider>>()
+    ));
+
+builder.Services
+    .AddSingleton<IEmailSender, RoundRobinEmailSender>();
 
 builder.Services
     .AddClientCredentialsTokenManagement()
     .AddClient(ClientCredentialsClientName.Parse("people"), client =>
     {
-        client.TokenEndpoint = new Uri(builder.Configuration.GetRequiredUri("Authentication:Authority"), "connect/token");
-        client.ClientId = ClientId.Parse(builder.Configuration.GetRequiredString("People:ClientId"));
-        client.ClientSecret = ClientSecret.Parse(builder.Configuration.GetRequiredString("People:ClientSecret"));
-        client.Scope = Scope.Parse(builder.Configuration.GetRequiredString("People:Scope"));
+        client.TokenEndpoint = builder.Configuration.GetUri("Authentication:Authority","connect/token");
+        client.ClientId = ClientId.Parse(builder.Configuration.GetString("People:ClientId"));
+        client.ClientSecret = ClientSecret.Parse(builder.Configuration.GetString("People:ClientSecret"));
+        client.Scope = Scope.Parse(builder.Configuration.GetString("People:Scope"));
     });
 
 builder.Services
     .AddHttpClient<IPeopleApiClient, PeopleApiClient>(client =>
-        client.BaseAddress = builder.Configuration.GetRequiredUri("People:Host")
+        client.BaseAddress = builder.Configuration.GetUri("People:Host")
     )
     .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("people"));
 
@@ -75,8 +84,8 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = builder.Configuration.GetRequiredUri("Authentication:Authority").AbsoluteUri;
-        options.Audience = builder.Configuration.GetRequiredString("Authentication:Audience");
+        options.Authority = builder.Configuration.GetUri("Authentication:Authority").AbsoluteUri;
+        options.Audience = builder.Configuration.GetString("Authentication:Audience");
         options.RequireHttpsMetadata = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -98,18 +107,9 @@ builder.Services
     {
         configurator.ScheduleJob<SendEmailJob>(trigger => trigger
             .WithIdentity(nameof(SendEmailJob))
-            .StartAt(DateBuilder.NextGivenSecondDate(DateTimeOffset.UtcNow, 0))
+            .StartNow()
             .WithSimpleSchedule(schedule => schedule
                 .WithIntervalInSeconds(5)
-                .RepeatForever()
-            )
-        );
-
-        configurator.ScheduleJob<UpdateProviderBalanceJob>(trigger => trigger
-            .WithIdentity(nameof(UpdateProviderBalanceJob))
-            .StartAt(DateBuilder.NextGivenMinuteDate(DateTimeOffset.UtcNow, 0))
-            .WithSimpleSchedule(schedule => schedule
-                .WithIntervalInHours(1)
                 .RepeatForever()
             )
         );
@@ -137,9 +137,6 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
     await context.Database.MigrateAsync();
-
-    await new NotificationDbContextSeed(context)
-        .SeedAsync();
 }
 
 app.UseAuthentication()

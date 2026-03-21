@@ -5,9 +5,6 @@ namespace Notification.Api.Infrastructure;
 
 public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext> options) : DbContext(options)
 {
-    public DbSet<EmailProvider> EmailProviders =>
-        Set<EmailProvider>();
-
     public DbSet<EmailMessage> EmailMessages =>
         Set<EmailMessage>();
 

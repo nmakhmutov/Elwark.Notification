@@ -55,7 +55,7 @@ internal sealed class EmailMessageConfiguration : IEntityTypeConfiguration<Email
         builder.Property(x => x.CreatedAt)
             .HasColumnName("created_at")
             .IsRequired();
-        
+
         builder.HasIndex(x => new { x.Status, x.SendAt });
         builder.HasIndex(x => new { x.Status, x.UpdatedAt });
     }

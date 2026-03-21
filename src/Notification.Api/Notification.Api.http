@@ -6,10 +6,15 @@
 POST {{authority}}/connect/token
 Content-Type: application/x-www-form-urlencoded
 
-grant_type=client_credentials&client_id=elwark.people.api&client_secret=secret&scope=elwark.notification.api
+grant_type = client_credentials &
+client_id = elwark.people.api &
+client_secret = secret &
+scope = elwark.notification.api
 
 > {%
+
 client.global.set("access_token", response.body.access_token);
+
 %}
 
 ### Send email by address (plain text)

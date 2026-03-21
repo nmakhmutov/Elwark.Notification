@@ -83,61 +83,6 @@ namespace Notification.Api.Infrastructure.Migrations
 
                     b.ToTable("email_messages", (string)null);
                 });
-
-            modelBuilder.Entity("Notification.Api.Models.EmailProvider", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    b.Property<int>("Balance")
-                        .HasColumnType("integer")
-                        .HasColumnName("balance");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_enabled");
-
-                    b.Property<int>("Limit")
-                        .HasColumnType("integer")
-                        .HasColumnName("limit");
-
-                    b.Property<DateTime>("ResetAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("reset_at");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("email_providers", (string)null);
-
-                    b.HasDiscriminator<int>("Id");
-
-                    b.UseTphMappingStrategy();
-                });
-
-            modelBuilder.Entity("Notification.Api.Models.Resend", b =>
-                {
-                    b.HasBaseType("Notification.Api.Models.EmailProvider");
-
-                    b.HasDiscriminator().HasValue(2);
-                });
-
-            modelBuilder.Entity("Notification.Api.Models.Sendgrid", b =>
-                {
-                    b.HasBaseType("Notification.Api.Models.EmailProvider");
-
-                    b.HasDiscriminator().HasValue(1);
-                });
 #pragma warning restore 612, 618
         }
     }

@@ -11,8 +11,10 @@ internal sealed partial class DeleteCompletedEmailsJob : IJob
     private readonly IDbContextFactory<NotificationDbContext> _factory;
     private readonly ILogger<DeleteCompletedEmailsJob> _logger;
 
-    public DeleteCompletedEmailsJob(IDbContextFactory<NotificationDbContext> factory,
-        ILogger<DeleteCompletedEmailsJob> logger)
+    public DeleteCompletedEmailsJob(
+        IDbContextFactory<NotificationDbContext> factory,
+        ILogger<DeleteCompletedEmailsJob> logger
+    )
     {
         _factory = factory;
         _logger = logger;

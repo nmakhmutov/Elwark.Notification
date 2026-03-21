@@ -32,20 +32,16 @@ internal static class EmailEndpoints
         IEmailMessageRepository repository,
         HttpRequest httpRequest,
         CancellationToken ct
-    )
-    {
-        return QueueEmailAsync(request.Email, request.Subject, null, httpRequest, repository, ct);
-    }
+    ) =>
+        QueueEmailAsync(request.Email, request.Subject, null, httpRequest, repository, ct);
 
     private static Task<Results<Accepted<EmailQueueReply>, BadRequest<string>>> ScheduleEmailAsync(
         [AsParameters] ScheduleToAddressRequest request,
         IEmailMessageRepository repository,
         HttpRequest httpRequest,
         CancellationToken ct
-    )
-    {
-        return QueueEmailAsync(request.Email, request.Subject, request.Timezone, httpRequest, repository, ct);
-    }
+    ) =>
+        QueueEmailAsync(request.Email, request.Subject, request.Timezone, httpRequest, repository, ct);
 
     private static async Task<Results<Accepted<EmailQueueReply>, BadRequest<string>>> QueueEmailAsync(
         string email,

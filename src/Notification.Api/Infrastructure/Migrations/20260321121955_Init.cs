@@ -32,23 +32,6 @@ namespace Notification.Api.Infrastructure.Migrations
                     table.PrimaryKey("PK_email_messages", x => x.id);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "email_providers",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "integer", nullable: false),
-                    limit = table.Column<int>(type: "integer", nullable: false),
-                    balance = table.Column<int>(type: "integer", nullable: false),
-                    is_enabled = table.Column<bool>(type: "boolean", nullable: false),
-                    reset_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_email_providers", x => x.id);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_email_messages_status_send_at",
                 table: "email_messages",
@@ -65,9 +48,6 @@ namespace Notification.Api.Infrastructure.Migrations
         {
             migrationBuilder.DropTable(
                 name: "email_messages");
-
-            migrationBuilder.DropTable(
-                name: "email_providers");
         }
     }
 }

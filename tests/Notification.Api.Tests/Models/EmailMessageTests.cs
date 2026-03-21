@@ -4,6 +4,34 @@ namespace Notification.Api.Tests.Models;
 
 public sealed class EmailMessageTests
 {
+    [Fact]
+    public void Create_AttemptsAndErrorShouldBeZeroAndNull()
+    {
+        var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
+
+        Assert.Equal(0, message.Attempts);
+        Assert.Null(message.Error);
+    }
+
+    [Fact]
+    public void Create_CreatedAtShouldBeRecentUtcTime()
+    {
+        var before = DateTime.UtcNow;
+
+        var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
+
+        Assert.True(message.CreatedAt >= before);
+        Assert.True(message.CreatedAt <= DateTime.UtcNow);
+    }
+
+    [Fact]
+    public void Create_EachCallShouldProduceUniqueId()
+    {
+        var a = EmailMessage.Create("a@example.com", "Subject", "Body", false, DateTime.UtcNow);
+        var b = EmailMessage.Create("b@example.com", "Subject", "Body", false, DateTime.UtcNow);
+
+        Assert.NotEqual(a.Id, b.Id);
+    }
     // ── Create ────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -44,46 +72,51 @@ public sealed class EmailMessageTests
     }
 
     [Fact]
-    public void Create_EachCallShouldProduceUniqueId()
-    {
-        var a = EmailMessage.Create("a@example.com", "Subject", "Body", false, DateTime.UtcNow);
-        var b = EmailMessage.Create("b@example.com", "Subject", "Body", false, DateTime.UtcNow);
-
-        Assert.NotEqual(a.Id, b.Id);
-    }
-
-    [Fact]
-    public void Create_CreatedAtShouldBeRecentUtcTime()
-    {
-        var before = DateTime.UtcNow;
-
-        var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
-
-        Assert.True(message.CreatedAt >= before);
-        Assert.True(message.CreatedAt <= DateTime.UtcNow);
-    }
-
-    [Fact]
-    public void Create_AttemptsAndErrorShouldBeZeroAndNull()
+    public void MarkCompleted_CalledTwice_ShouldIncrementAttemptsTwice()
     {
         var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
 
-        Assert.Equal(0, message.Attempts);
+        message.MarkCompleted();
+        message.MarkCompleted();
+
+        Assert.Equal(2, message.Attempts);
+    }
+
+    [Fact]
+    public void MarkCompleted_OnFreshMessage_ShouldHaveOneAttempt()
+    {
+        var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
+
+        message.MarkCompleted();
+
+        Assert.Equal(1, message.Attempts);
+    }
+
+    [Fact]
+    public void MarkCompleted_ShouldAlwaysClearError_EvenIfSetMultipleTimes()
+    {
+        var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
+        message.Reschedule(DateTime.UtcNow.AddMinutes(1), "error 1");
+        message.Reschedule(DateTime.UtcNow.AddMinutes(2), "error 2");
+
+        message.MarkCompleted();
+
         Assert.Null(message.Error);
     }
 
-    // ── MarkProcessing ────────────────────────────────────────────────────────
+    // ── MarkCompleted ─────────────────────────────────────────────────────────
 
     [Fact]
-    public void MarkProcessing_ShouldTransitionToProcessing_AndUpdateTimestamp()
+    public void MarkCompleted_ShouldTransitionToCompleted_AndIncrementAttempts_AndClearError()
     {
         var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
-        var now = DateTime.UtcNow.AddSeconds(1);
+        message.Reschedule(DateTime.UtcNow.AddMinutes(1), "previous error");
 
-        message.MarkProcessing(now);
+        message.MarkCompleted();
 
-        Assert.Equal(EmailMessage.QueueStatus.Processing, message.Status);
-        Assert.Equal(now, message.UpdatedAt);
+        Assert.Equal(EmailMessage.QueueStatus.Completed, message.Status);
+        Assert.Equal(2, message.Attempts);
+        Assert.Null(message.Error);
     }
 
     [Fact]
@@ -111,52 +144,41 @@ public sealed class EmailMessageTests
         Assert.Null(message.Error);
     }
 
-    // ── MarkCompleted ─────────────────────────────────────────────────────────
+    // ── MarkProcessing ────────────────────────────────────────────────────────
 
     [Fact]
-    public void MarkCompleted_ShouldTransitionToCompleted_AndIncrementAttempts_AndClearError()
+    public void MarkProcessing_ShouldTransitionToProcessing_AndUpdateTimestamp()
     {
         var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
-        message.Reschedule(DateTime.UtcNow.AddMinutes(1), "previous error");
+        var now = DateTime.UtcNow.AddSeconds(1);
 
-        message.MarkCompleted();
+        message.MarkProcessing(now);
 
-        Assert.Equal(EmailMessage.QueueStatus.Completed, message.Status);
-        Assert.Equal(2, message.Attempts);
-        Assert.Null(message.Error);
+        Assert.Equal(EmailMessage.QueueStatus.Processing, message.Status);
+        Assert.Equal(now, message.UpdatedAt);
     }
 
     [Fact]
-    public void MarkCompleted_OnFreshMessage_ShouldHaveOneAttempt()
+    public void Reschedule_AfterMarkProcessing_ShouldReturnToPending()
     {
         var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
+        message.MarkProcessing(DateTime.UtcNow);
 
-        message.MarkCompleted();
+        message.Reschedule(DateTime.UtcNow.AddMinutes(1), "send failed");
 
-        Assert.Equal(1, message.Attempts);
+        Assert.Equal(EmailMessage.QueueStatus.Pending, message.Status);
     }
 
     [Fact]
-    public void MarkCompleted_CalledTwice_ShouldIncrementAttemptsTwice()
+    public void Reschedule_MultipleTimes_ShouldAccumulateAttempts()
     {
         var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
 
-        message.MarkCompleted();
-        message.MarkCompleted();
-
-        Assert.Equal(2, message.Attempts);
-    }
-
-    [Fact]
-    public void MarkCompleted_ShouldAlwaysClearError_EvenIfSetMultipleTimes()
-    {
-        var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
         message.Reschedule(DateTime.UtcNow.AddMinutes(1), "error 1");
         message.Reschedule(DateTime.UtcNow.AddMinutes(2), "error 2");
+        message.Reschedule(DateTime.UtcNow.AddMinutes(3), "error 3");
 
-        message.MarkCompleted();
-
-        Assert.Null(message.Error);
+        Assert.Equal(3, message.Attempts);
     }
 
     // ── Reschedule ────────────────────────────────────────────────────────────
@@ -176,28 +198,6 @@ public sealed class EmailMessageTests
     }
 
     [Fact]
-    public void Reschedule_AfterMarkProcessing_ShouldReturnToPending()
-    {
-        var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
-        message.MarkProcessing(DateTime.UtcNow);
-
-        message.Reschedule(DateTime.UtcNow.AddMinutes(1), "send failed");
-
-        Assert.Equal(EmailMessage.QueueStatus.Pending, message.Status);
-    }
-
-    [Fact]
-    public void Reschedule_WithNullError_ShouldClearPreviousError()
-    {
-        var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
-        message.Reschedule(DateTime.UtcNow.AddMinutes(1), "initial error");
-
-        message.Reschedule(DateTime.UtcNow.AddMinutes(2), null);
-
-        Assert.Null(message.Error);
-    }
-
-    [Fact]
     public void Reschedule_ShouldOverwritePreviousError()
     {
         var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
@@ -206,18 +206,6 @@ public sealed class EmailMessageTests
         message.Reschedule(DateTime.UtcNow.AddMinutes(2), "second error");
 
         Assert.Equal("second error", message.Error);
-    }
-
-    [Fact]
-    public void Reschedule_MultipleTimes_ShouldAccumulateAttempts()
-    {
-        var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
-
-        message.Reschedule(DateTime.UtcNow.AddMinutes(1), "error 1");
-        message.Reschedule(DateTime.UtcNow.AddMinutes(2), "error 2");
-        message.Reschedule(DateTime.UtcNow.AddMinutes(3), "error 3");
-
-        Assert.Equal(3, message.Attempts);
     }
 
     [Fact]
@@ -230,5 +218,16 @@ public sealed class EmailMessageTests
         message.Reschedule(rescheduled, null);
 
         Assert.Equal(rescheduled, message.SendAt);
+    }
+
+    [Fact]
+    public void Reschedule_WithNullError_ShouldClearPreviousError()
+    {
+        var message = EmailMessage.Create("test@example.com", "Subject", "Body", false, DateTime.UtcNow);
+        message.Reschedule(DateTime.UtcNow.AddMinutes(1), "initial error");
+
+        message.Reschedule(DateTime.UtcNow.AddMinutes(2), null);
+
+        Assert.Null(message.Error);
     }
 }

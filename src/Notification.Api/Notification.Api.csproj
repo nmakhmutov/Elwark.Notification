@@ -1,35 +1,30 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
-    <None Include=".env" />
-    <None Include=".env.example" />
+    <None Include=".env" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include=".env.example"/>
   </ItemGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Notification.Api.Tests" />
+    <InternalsVisibleTo Include="Notification.Api.Tests"/>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="DotNetEnv" Version="3.1.1" />
-    <PackageReference Include="Duende.AccessTokenManagement" Version="4.1.2" />
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
+    <PackageReference Include="DotNetEnv"/>
+    <PackageReference Include="Duende.AccessTokenManagement"/>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions"/>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.5" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
-    <PackageReference Include="Polly" Version="8.6.6" />
-    <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.16.1" />
-    <PackageReference Include="Quartz.Extensions.Hosting" Version="3.16.1" />
-    <PackageReference Include="Resend" Version="0.2.2" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.13.9" />
-    <PackageReference Include="SendGrid" Version="9.29.3" />
-    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"/>
+    <PackageReference Include="Polly"/>
+    <PackageReference Include="Quartz.Extensions.DependencyInjection"/>
+    <PackageReference Include="Quartz.Extensions.Hosting"/>
+    <PackageReference Include="Resend"/>
+    <PackageReference Include="Scalar.AspNetCore"/>
+    <PackageReference Include="SendGrid"/>
+    <PackageReference Include="Serilog.AspNetCore"/>
   </ItemGroup>
 </Project>
