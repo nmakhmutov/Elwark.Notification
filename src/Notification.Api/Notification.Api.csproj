@@ -1,9 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
-    <None Include=".env" CopyToOutputDirectory="PreserveNewest"/>
-    <None Include=".env.example"/>
-  </ItemGroup>
-  <ItemGroup>
     <InternalsVisibleTo Include="Notification.Api.Tests"/>
   </ItemGroup>
   <ItemGroup>
