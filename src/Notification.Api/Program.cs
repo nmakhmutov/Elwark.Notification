@@ -100,7 +100,7 @@ builder.Services
 
 builder.Services
     .AddAuthorizationBuilder()
-    .AddDefaultPolicy("Default", policy => policy.RequireClaim("scope", "elwark.notification.api"));
+    .AddDefaultPolicy("Default", policy => policy.RequireClaim("scope"));
 
 builder.Services
     .AddQuartz(configurator =>

@@ -9,7 +9,7 @@ Content-Type: application/x-www-form-urlencoded
 grant_type = client_credentials &
 client_id = elwark.people.api &
 client_secret = secret &
-scope = elwark.notification.api
+scope = elwark.notification
 
 > {%
 
@@ -44,6 +44,13 @@ Content-Type: text/plain
 Authorization: Bearer {{access_token}}
 
 Hello user.
+
+### Send email by user id
+POST {{host}}/users/1?subject=Test Message
+Content-Type: text/html
+Authorization: Bearer {{access_token}}
+
+<h1>Hello</h1><p>This is an HTML email body.</p>
 
 ### Schedule email by user id
 POST {{host}}/users/123/schedule?subject=Scheduled+Hello&timezone=Europe/London
