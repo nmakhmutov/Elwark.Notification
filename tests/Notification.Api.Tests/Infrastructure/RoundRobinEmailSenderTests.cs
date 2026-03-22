@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Notification.Api.Infrastructure;
 using Notification.Api.Infrastructure.Provider;
@@ -8,6 +7,7 @@ namespace Notification.Api.Tests.Infrastructure;
 public sealed class RoundRobinEmailSenderTests
 {
     private static readonly EmailRequest TestMessage = new("test@example.com", "Subject", "Body", true);
+    private static readonly TimeSpan TestCooldown = TimeSpan.FromMinutes(10);
 
     [Fact]
     public async Task SendAsync_ShouldSendViaOneProvider()
@@ -32,55 +32,33 @@ public sealed class RoundRobinEmailSenderTests
     }
 
     [Fact]
-    public async Task SendAsync_ShouldFailoverOnRateLimit()
+    public async Task SendAsync_WhenProviderRateLimits_ShouldSucceedViaOther()
     {
         var (sender, a, b) = CreateSenderWithTwoProviders();
         a.ShouldRateLimit = true;
         b.ShouldRateLimit = true;
 
-        // Both rate-limit — but we only need one to not rate-limit for failover
-        // Set just one to rate-limit, the other should handle it
-        b.ShouldRateLimit = false;
+        // Whichever is tried first will rate-limit, turn off rate-limiting for the other
+        // Since we don't know the order, set both to rate-limit then clear one
+        a.ShouldRateLimit = false;
 
         await sender.SendAsync(TestMessage, CancellationToken.None);
-        // One must have been tried and rate-limited, the other succeeded
-        // or the non-rate-limited one was tried first
-        Assert.Equal(1, a.SendCount + b.SendCount - 0);
 
-        // More precisely: exactly one of them succeeded
         Assert.True(a.SendCount + b.SendCount >= 1);
     }
 
     [Fact]
-    public async Task SendAsync_WhenFirstProviderRateLimits_ShouldSucceedViaSecond()
-    {
-        var (sender, a, b) = CreateSenderWithTwoProviders();
-
-        // Rate-limit both, then we know exactly what happens
-        a.ShouldRateLimit = true;
-        b.ShouldRateLimit = true;
-
-        // Can't send when all rate-limit
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => sender.SendAsync(TestMessage, CancellationToken.None));
-
-        // Now allow both — but both are on cooldown, so still fails
-        a.ShouldRateLimit = false;
-        b.ShouldRateLimit = false;
-
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => sender.SendAsync(TestMessage, CancellationToken.None));
-    }
-
-    [Fact]
-    public async Task SendAsync_ShouldThrowInvalidOperationException_WhenAllProvidersExhausted()
+    public async Task SendAsync_ShouldThrowWhenAllProvidersRateLimited()
     {
         var (sender, a, b) = CreateSenderWithTwoProviders();
         a.ShouldRateLimit = true;
         b.ShouldRateLimit = true;
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => sender.SendAsync(TestMessage, CancellationToken.None));
+
+        Assert.Equal("All email providers are exhausted", ex.Message);
+        Assert.IsType<ProviderRateLimitException>(ex.InnerException);
     }
 
     [Fact]
@@ -90,16 +68,15 @@ public sealed class RoundRobinEmailSenderTests
         a.ShouldRateLimit = true;
         b.ShouldRateLimit = true;
 
-        // Exhaust all — puts both on cooldown
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => sender.SendAsync(TestMessage, CancellationToken.None));
 
         var totalSendsBefore = a.SendCount + b.SendCount;
 
-        // Both should now be skipped due to cooldown — no new sends attempted
         a.ShouldRateLimit = false;
         b.ShouldRateLimit = false;
 
+        // Both on cooldown, so they should be skipped even though they'd succeed now
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => sender.SendAsync(TestMessage, CancellationToken.None));
 
@@ -107,16 +84,55 @@ public sealed class RoundRobinEmailSenderTests
     }
 
     [Fact]
-    public async Task SendAsync_ShouldPropagateNonRateLimitExceptions()
+    public async Task SendAsync_WhenProviderFails_ShouldTryNextProvider()
     {
         var (sender, a, b) = CreateSenderWithTwoProviders();
         a.ExceptionToThrow = new InvalidOperationException("boom");
         b.ExceptionToThrow = new InvalidOperationException("boom");
 
+        // Whichever is tried first fails, the second also fails
+        // Clear one so the failover target succeeds
+        b.ExceptionToThrow = null;
+
+        await sender.SendAsync(TestMessage, CancellationToken.None);
+
+        // At least one provider was tried and the other succeeded
+        Assert.True(a.SendCount + b.SendCount >= 1);
+    }
+
+    [Fact]
+    public async Task SendAsync_WhenProviderFails_ShouldNotCooldown()
+    {
+        var (sender, a, b) = CreateSenderWithTwoProviders();
+        a.ExceptionToThrow = new InvalidOperationException("boom");
+        b.ExceptionToThrow = new InvalidOperationException("boom");
+
+        // Both fail → exception thrown
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => sender.SendAsync(TestMessage, CancellationToken.None));
+
+        // Clear exceptions — providers should NOT be on cooldown
+        a.ExceptionToThrow = null;
+        b.ExceptionToThrow = null;
+
+        // Should succeed because non-rate-limit failures don't cause cooldown
+        await sender.SendAsync(TestMessage, CancellationToken.None);
+
+        Assert.True(a.SendCount + b.SendCount >= 3);
+    }
+
+    [Fact]
+    public async Task SendAsync_WhenAllProvidersFail_ShouldThrow()
+    {
+        var (sender, a, b) = CreateSenderWithTwoProviders();
+        a.ExceptionToThrow = new InvalidOperationException("boom a");
+        b.ExceptionToThrow = new InvalidOperationException("boom b");
+
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => sender.SendAsync(TestMessage, CancellationToken.None));
 
-        Assert.Equal("boom", ex.Message);
+        Assert.Equal("All email providers are exhausted", ex.Message);
+        Assert.NotNull(ex.InnerException);
     }
 
     [Fact]
@@ -125,10 +141,7 @@ public sealed class RoundRobinEmailSenderTests
         var a = new FakeProviderA();
         var b = new FakeProviderB();
         var c = new FakeProviderC();
-        var sender = CreateSender(
-            s => s.AddScoped<IEmailProvider>(_ => a),
-            s => s.AddScoped<IEmailProvider>(_ => b),
-            s => s.AddScoped<IEmailProvider>(_ => c));
+        var sender = CreateSender(a, b, c);
 
         await sender.SendAsync(TestMessage, CancellationToken.None);
         await sender.SendAsync(TestMessage, CancellationToken.None);
@@ -145,40 +158,69 @@ public sealed class RoundRobinEmailSenderTests
         var a = new FakeProviderA { ShouldRateLimit = true };
         var b = new FakeProviderB { ShouldRateLimit = true };
         var c = new FakeProviderC();
-        var sender = CreateSender(
-            s => s.AddScoped<IEmailProvider>(_ => a),
-            s => s.AddScoped<IEmailProvider>(_ => b),
-            s => s.AddScoped<IEmailProvider>(_ => c));
+        var sender = CreateSender(a, b, c);
 
         await sender.SendAsync(TestMessage, CancellationToken.None);
 
-        // C should have handled it after A and B rate-limited
         Assert.Equal(1, c.SendCount);
+    }
+
+    [Fact]
+    public async Task SendAsync_RateLimitShouldUseCooldownFromException()
+    {
+        var (sender, a, b) = CreateSenderWithTwoProviders();
+        a.ShouldRateLimit = true;
+        b.ShouldRateLimit = true;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => sender.SendAsync(TestMessage, CancellationToken.None));
+
+        a.ShouldRateLimit = false;
+        b.ShouldRateLimit = false;
+
+        // Both are on cooldown from the ProviderRateLimitException, no providers available
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => sender.SendAsync(TestMessage, CancellationToken.None));
+
+        Assert.Equal(1, a.SendCount);
+        Assert.Equal(1, b.SendCount);
+    }
+
+    [Fact]
+    public async Task SendAsync_MixedFailures_ShouldOnlyCooldownRateLimited()
+    {
+        var a = new FakeProviderA { ExceptionToThrow = new InvalidOperationException("boom") };
+        var b = new FakeProviderB { ShouldRateLimit = true };
+        var c = new FakeProviderC();
+        var sender = CreateSender(a, b, c);
+
+        await sender.SendAsync(TestMessage, CancellationToken.None);
+
+        a.ExceptionToThrow = null;
+
+        // A should still be available (wasn't rate-limited, just failed)
+        // B should be on cooldown (was rate-limited)
+        // C is always available
+        for (var i = 0; i < 6; i++)
+            await sender.SendAsync(TestMessage, CancellationToken.None);
+
+        Assert.True(a.SendCount >= 2, "Provider A should still be available after non-rate-limit failure");
+        Assert.True(b.SendCount == 1, "Provider B should be on cooldown after rate-limit");
     }
 
     private static (RoundRobinEmailSender Sender, FakeProviderA A, FakeProviderB B) CreateSenderWithTwoProviders()
     {
         var a = new FakeProviderA();
         var b = new FakeProviderB();
-        var sender = CreateSender(
-            s => s.AddScoped<IEmailProvider>(_ => a),
-            s => s.AddScoped<IEmailProvider>(_ => b));
+        var sender = CreateSender(a, b);
 
         return (sender, a, b);
     }
 
-    private static RoundRobinEmailSender CreateSender(params Action<IServiceCollection>[] registrations)
+    private static RoundRobinEmailSender CreateSender(params IEmailProvider[] providers)
     {
-        var services = new ServiceCollection();
-
-        foreach (var registration in registrations)
-            registration(services);
-
-        var rootProvider = services.BuildServiceProvider();
-        var scopeFactory = rootProvider.GetRequiredService<IServiceScopeFactory>();
         var logger = new NullLogger<RoundRobinEmailSender>();
-
-        return new RoundRobinEmailSender(scopeFactory, logger);
+        return new RoundRobinEmailSender(providers, logger);
     }
 
     private abstract class FakeProviderBase : IEmailProvider
@@ -197,7 +239,7 @@ public sealed class RoundRobinEmailSenderTests
                 throw ExceptionToThrow;
 
             if (ShouldRateLimit)
-                throw new ProviderRateLimitException(GetType().Name);
+                throw new ProviderRateLimitException(GetType().Name, TestCooldown);
 
             return Task.CompletedTask;
         }

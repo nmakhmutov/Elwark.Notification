@@ -6,17 +6,24 @@ namespace Notification.Api.Infrastructure.Provider;
 
 internal sealed partial class SendGridEmailProvider : IEmailProvider
 {
-    private readonly SendGridClient _client;
+    private static readonly TimeSpan DefaultCooldown = TimeSpan.FromMinutes(10);
+
+    private readonly IHttpClientFactory _factory;
+    private readonly string _apiKey;
     private readonly ILogger<SendGridEmailProvider> _logger;
 
-    public SendGridEmailProvider(SendGridClient client, ILogger<SendGridEmailProvider> logger)
+    public SendGridEmailProvider(IHttpClientFactory factory, string apiKey, ILogger<SendGridEmailProvider> logger)
     {
-        _client = client;
+        _factory = factory;
+        _apiKey = apiKey;
         _logger = logger;
     }
 
     public async Task SendAsync(EmailRequest message, CancellationToken ct)
     {
+        var httpClient = _factory.CreateClient(nameof(SendGridClient));
+        var client = new SendGridClient(httpClient, _apiKey);
+
         var msg = MailHelper.CreateSingleEmail(
             new EmailAddress("elwarkinc@gmail.com", "Elwark"),
             new EmailAddress(message.To),
@@ -25,20 +32,21 @@ internal sealed partial class SendGridEmailProvider : IEmailProvider
             message.IsHtml ? message.Body : null
         );
 
-        var response = await _client.SendEmailAsync(msg, ct);
+        var response = await client.SendEmailAsync(msg, ct);
 
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
-            throw new ProviderRateLimitException("SendGrid");
+            throw new ProviderRateLimitException("SendGrid", DefaultCooldown);
 
-        if (response.StatusCode != HttpStatusCode.Accepted)
+        if (response.StatusCode == HttpStatusCode.Accepted)
         {
-            var body = await response.Body.ReadAsStringAsync(ct);
-            LogEmailFailed(message.To, message.Subject, response.StatusCode, body);
-
-            throw new InvalidOperationException($"SendGrid returned {response.StatusCode}: {body}");
+            LogEmailSend(message.To, message.Subject);
+            return;
         }
 
-        LogEmailSend(message.To, message.Subject);
+        var body = await response.Body.ReadAsStringAsync(ct);
+        LogEmailFailed(message.To, message.Subject, response.StatusCode, body);
+
+        throw new InvalidOperationException($"SendGrid returned {response.StatusCode}: {body}");
     }
 
     [LoggerMessage(LogLevel.Information, "Email to {email} with subject {subject} sent via SendGrid")]

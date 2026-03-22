@@ -4,7 +4,12 @@ public sealed class ProviderRateLimitException : Exception
 {
     public string Provider { get; }
 
-    public ProviderRateLimitException(string provider)
-        : base($"Rate limit exceeded for provider '{provider}'") =>
+    public TimeSpan RetryAfter { get; }
+
+    public ProviderRateLimitException(string provider, TimeSpan retryAfter)
+        : base($"Rate limit exceeded for provider '{provider}', retry after {retryAfter}")
+    {
         Provider = provider;
+        RetryAfter = retryAfter;
+    }
 }

@@ -43,19 +43,22 @@ builder.Services
     .AddValidatorsFromAssemblies(assemblies);
 
 builder.Services
-    .AddScoped<IEmailProvider, ResendEmailProvider>()
+    .AddSingleton<IEmailProvider, ResendEmailProvider>()
     .Configure<ResendClientOptions>(x => x.ApiToken = builder.Configuration.GetString("Resend:Key"))
-    .AddHttpClient<IResend, ResendClient>();
+    .AddHttpClient(nameof(ResendClient));
 
 builder.Services
-    .AddScoped<IEmailProvider>(provider =>
+    .AddSingleton<IEmailProvider>(provider =>
     {
-        var client = new SendGridClient(builder.Configuration.GetString("SendGrid:Key"));
-        return new SendGridEmailProvider(client, provider.GetRequiredService<ILogger<SendGridEmailProvider>>());
-    });
+        var factory = provider.GetRequiredService<IHttpClientFactory>();
+        var logger = provider.GetRequiredService<ILogger<SendGridEmailProvider>>();
+
+        return new SendGridEmailProvider(factory,builder.Configuration.GetString("SendGrid:Key"), logger);
+    })
+    .AddHttpClient(nameof(SendGridClient));
 
 builder.Services
-    .AddScoped<IEmailProvider>(provider => new GmailEmailProvider(
+    .AddSingleton<IEmailProvider>(provider => new GmailEmailProvider(
         builder.Configuration.GetString("Gmail:Username"),
         builder.Configuration.GetString("Gmail:Key"),
         provider.GetRequiredService<ILogger<GmailEmailProvider>>()
@@ -68,7 +71,7 @@ builder.Services
     .AddClientCredentialsTokenManagement()
     .AddClient(ClientCredentialsClientName.Parse("people"), client =>
     {
-        client.TokenEndpoint = builder.Configuration.GetUri("Authentication:Authority","connect/token");
+        client.TokenEndpoint = builder.Configuration.GetUri("Authentication:Authority", "connect/token");
         client.ClientId = ClientId.Parse(builder.Configuration.GetString("People:ClientId"));
         client.ClientSecret = ClientSecret.Parse(builder.Configuration.GetString("People:ClientSecret"));
         client.Scope = Scope.Parse(builder.Configuration.GetString("People:Scope"));

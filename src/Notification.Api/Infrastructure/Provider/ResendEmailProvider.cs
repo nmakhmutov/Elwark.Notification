@@ -1,21 +1,29 @@
 using System.Net;
+using Microsoft.Extensions.Options;
 using Resend;
 
 namespace Notification.Api.Infrastructure.Provider;
 
 internal sealed partial class ResendEmailProvider : IEmailProvider
 {
-    private readonly ILogger<ResendEmailProvider> _logger;
-    private readonly IResend _resend;
+    private static readonly TimeSpan DefaultCooldown = TimeSpan.FromMinutes(10);
 
-    public ResendEmailProvider(IResend resend, ILogger<ResendEmailProvider> logger)
+    private readonly IHttpClientFactory _factory;
+    private readonly IOptionsMonitor<ResendClientOptions> _options;
+    private readonly ILogger<ResendEmailProvider> _logger;
+
+    public ResendEmailProvider(IHttpClientFactory factory, IOptionsMonitor<ResendClientOptions> options, ILogger<ResendEmailProvider> logger)
     {
-        _resend = resend;
+        _factory = factory;
+        _options = options;
         _logger = logger;
     }
 
     public async Task SendAsync(EmailRequest message, CancellationToken ct)
     {
+        var httpClient = _factory.CreateClient(nameof(ResendClient));
+        var resend = ResendClient.Create(_options.CurrentValue, httpClient);
+
         var msg = new EmailMessage
         {
             From = "Elwark <noreply@elwark.app>",
@@ -27,7 +35,7 @@ internal sealed partial class ResendEmailProvider : IEmailProvider
 
         try
         {
-            var response = await _resend.EmailSendAsync(msg, ct);
+            var response = await resend.EmailSendAsync(msg, ct);
 
             LogEmailSend(message.To, message.Subject, response.Success);
             LogRateLimit(response.Limits?.Limit, response.Limits?.Remaining, response.Limits?.RetryAfter);
@@ -35,7 +43,13 @@ internal sealed partial class ResendEmailProvider : IEmailProvider
         catch (ResendException ex)
         {
             if (ex.StatusCode == HttpStatusCode.TooManyRequests)
-                throw new ProviderRateLimitException("Resend");
+            {
+                var retryAfter = ex.Limits?.RetryAfter is > 0
+                    ? TimeSpan.FromSeconds(ex.Limits.RetryAfter.Value)
+                    : DefaultCooldown;
+
+                throw new ProviderRateLimitException("Resend", retryAfter);
+            }
 
             LogEmailFailed(message.To, message.Subject, ex.StatusCode, ex.Message);
             LogRateLimit(ex.Limits?.Limit, ex.Limits?.Remaining, ex.Limits?.RetryAfter);

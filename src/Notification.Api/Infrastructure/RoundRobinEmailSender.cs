@@ -1,44 +1,35 @@
-using System.Collections.Concurrent;
 using Notification.Api.Infrastructure.Provider;
 
 namespace Notification.Api.Infrastructure;
 
 internal sealed partial class RoundRobinEmailSender : IEmailSender
 {
-    private static readonly TimeSpan CooldownDuration = TimeSpan.FromMinutes(20);
-    private readonly ConcurrentDictionary<Type, DateTime> _cooldowns = new();
-    private readonly IServiceScopeFactory _factory;
     private readonly ILogger<RoundRobinEmailSender> _logger;
+    private readonly ProviderEntry[] _providers;
     private int _index;
 
-    public RoundRobinEmailSender(IServiceScopeFactory factory, ILogger<RoundRobinEmailSender> logger)
+    public RoundRobinEmailSender(IEnumerable<IEmailProvider> providers, ILogger<RoundRobinEmailSender> logger)
     {
-        _factory = factory;
         _logger = logger;
+        _providers = providers
+            .OrderBy(x => x.GetType().Name)
+            .Select(x => new ProviderEntry(x))
+            .ToArray();
     }
 
     public async Task SendAsync(EmailRequest message, CancellationToken ct)
     {
-        await using var scope = _factory.CreateAsyncScope();
-
-        var providers = scope.ServiceProvider
-            .GetRequiredService<IEnumerable<IEmailProvider>>()
-            .Select(x => (Type: x.GetType(), Provider: x))
-            .OrderBy(x => x.Type.Name)
-            .ToArray();
-
         var now = DateTime.UtcNow;
-        var count = providers.Length;
+        var count = _providers.Length;
         var startIndex = NextIndex(count);
 
         for (var i = 0; i < count; i++)
         {
-            var current = (startIndex + i) % count;
-            var (type, provider) = providers[current];
+            var provider = _providers[(startIndex + i) % count];
 
-            if (!IsAvailable(type, now))
+            if (!provider.IsAvailable(now))
             {
-                LogProviderCooldown(type.Name);
+                LogProviderCooldown(provider.Name);
                 continue;
             }
 
@@ -47,10 +38,18 @@ internal sealed partial class RoundRobinEmailSender : IEmailSender
                 await provider.SendAsync(message, ct);
                 return;
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (ProviderRateLimitException ex)
             {
-                var until = SetCooldown(type, now);
-                LogProviderRateLimited(ex.Provider, until);
+                provider.Cooldown(now.Add(ex.RetryAfter));
+                LogProviderRateLimited(provider.Name, provider.AvailableAfter, ex.RetryAfter);
+            }
+            catch (Exception ex)
+            {
+                LogProviderFailed(provider.Name, ex.Message);
             }
         }
 
@@ -71,29 +70,36 @@ internal sealed partial class RoundRobinEmailSender : IEmailSender
         return next;
     }
 
-    private bool IsAvailable(Type type, DateTime now)
-    {
-        if (!_cooldowns.TryGetValue(type, out var until))
-            return true;
-
-        if (now < until)
-            return false;
-
-        _cooldowns.TryRemove(type, out _);
-        return true;
-    }
-
-    private DateTime SetCooldown(Type type, DateTime now)
-    {
-        var until = now.Add(CooldownDuration);
-        _cooldowns[type] = until;
-
-        return until;
-    }
-
-    [LoggerMessage(LogLevel.Warning, "Provider {provider} rate limited, cooling down until {until}")]
-    partial void LogProviderRateLimited(string provider, DateTime until);
+    [LoggerMessage(LogLevel.Warning, "Provider {provider} rate limited, cooling down until {until} (retry after {retryAfter})")]
+    partial void LogProviderRateLimited(string provider, DateTime until, TimeSpan retryAfter);
 
     [LoggerMessage(LogLevel.Debug, "Provider {provider} is in cooldown, skipping")]
     partial void LogProviderCooldown(string provider);
+
+    [LoggerMessage(LogLevel.Warning, "Provider {provider} failed: {error}, trying next")]
+    partial void LogProviderFailed(string provider, string error);
+
+    private sealed class ProviderEntry
+    {
+        private readonly IEmailProvider _provider;
+
+        public ProviderEntry(IEmailProvider provider)
+        {
+            _provider = provider;
+            Name = provider.GetType().Name;
+        }
+
+        public string Name { get; }
+
+        public DateTime AvailableAfter { get; private set; }
+
+        public Task SendAsync(EmailRequest message, CancellationToken ct) =>
+            _provider.SendAsync(message, ct);
+
+        public bool IsAvailable(DateTime now) =>
+            now >= AvailableAfter;
+
+        public void Cooldown(DateTime delay) =>
+            AvailableAfter = delay;
+    }
 }

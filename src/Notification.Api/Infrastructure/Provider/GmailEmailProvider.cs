@@ -5,6 +5,8 @@ namespace Notification.Api.Infrastructure.Provider;
 
 internal sealed partial class GmailEmailProvider : IEmailProvider
 {
+    private static readonly TimeSpan DefaultCooldown = TimeSpan.FromMinutes(30);
+
     private readonly ILogger<GmailEmailProvider> _logger;
     private readonly string _password;
     private readonly string _username;
@@ -38,7 +40,7 @@ internal sealed partial class GmailEmailProvider : IEmailProvider
         }
         catch (SmtpException ex) when (ex.StatusCode == SmtpStatusCode.ServiceNotAvailable)
         {
-            throw new ProviderRateLimitException("Gmail");
+            throw new ProviderRateLimitException("Gmail", DefaultCooldown);
         }
         catch (SmtpException ex)
         {
