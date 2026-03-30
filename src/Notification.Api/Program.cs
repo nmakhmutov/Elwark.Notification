@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using DotNetEnv;
 using Duende.AccessTokenManagement;
 using FluentValidation;
@@ -11,9 +12,7 @@ using Notification.Api.Infrastructure.Provider;
 using Notification.Api.Infrastructure.Repositories;
 using Notification.Api.Job;
 using Quartz;
-using Resend;
 using Scalar.AspNetCore;
-using SendGrid;
 using Serilog;
 
 const string appName = "Notification.Api";
@@ -31,7 +30,6 @@ builder.Services
         options.EnableDetailedErrors(builder.Environment.IsDevelopment());
         options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
     })
-    .AddScoped(sp => sp.GetRequiredService<IDbContextFactory<NotificationDbContext>>().CreateDbContext())
     .AddScoped<IEmailMessageRepository, EmailMessageRepository>();
 
 builder.Services
@@ -42,20 +40,20 @@ builder.Services
     .AddOpenApi()
     .AddValidatorsFromAssemblies(assemblies);
 
-builder.Services
-    .AddSingleton<IEmailProvider, ResendEmailProvider>()
-    .Configure<ResendClientOptions>(x => x.ApiToken = builder.Configuration.GetString("Resend:Key"))
-    .AddHttpClient(nameof(ResendClient));
-
-builder.Services
-    .AddSingleton<IEmailProvider>(provider =>
-    {
-        var factory = provider.GetRequiredService<IHttpClientFactory>();
-        var logger = provider.GetRequiredService<ILogger<SendGridEmailProvider>>();
-
-        return new SendGridEmailProvider(factory,builder.Configuration.GetString("SendGrid:Key"), logger);
-    })
-    .AddHttpClient(nameof(SendGridClient));
+// builder.Services
+//     .AddSingleton<IEmailProvider, ResendEmailProvider>()
+//     .Configure<ResendClientOptions>(x => x.ApiToken = builder.Configuration.GetString("Resend:Key"))
+//     .AddHttpClient(nameof(ResendClient));
+//
+// builder.Services
+//     .AddSingleton<IEmailProvider>(provider =>
+//     {
+//         var factory = provider.GetRequiredService<IHttpClientFactory>();
+//         var logger = provider.GetRequiredService<ILogger<SendGridEmailProvider>>();
+//
+//         return new SendGridEmailProvider(factory,builder.Configuration.GetString("SendGrid:Key"), logger);
+//     })
+//     .AddHttpClient(nameof(SendGridClient));
 
 builder.Services
     .AddSingleton<IEmailProvider>(provider => new GmailEmailProvider(
@@ -99,11 +97,32 @@ builder.Services
             NameClaimType = "sub",
             ClockSkew = TimeSpan.FromSeconds(10)
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                if (context.Principal?.Identity is not ClaimsIdentity identity)
+                    return Task.CompletedTask;
+
+                var scope = identity.FindFirst("scope");
+                if (scope is null)
+                    return Task.CompletedTask;
+
+                identity.RemoveClaim(scope);
+
+                var claims = scope.Value.Split(" ")
+                    .Select(s => new Claim("scope", s));
+
+                identity.AddClaims(claims);
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services
     .AddAuthorizationBuilder()
-    .AddDefaultPolicy("Default", policy => policy.RequireClaim("scope"));
+    .AddDefaultPolicy("Default", policy => policy.RequireClaim("scope", "notification:send"));
 
 builder.Services
     .AddQuartz(configurator =>

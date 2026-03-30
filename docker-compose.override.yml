@@ -18,7 +18,7 @@ services:
       - Kestrel__EndPoints__Http__Url=http://+:80
       - ConnectionStrings__Postgresql=Host=postgresql;Database=elwark_notification;Username=master_account;Password=master_password;Pooling=true;Maximum Pool Size=5
       - Authentication__Authority=http://elwark_identity_api
-      - Authentication__Audience=elwark.notification.api
+      - Authentication__Audience=notification-api
       - People__Host=http://elwark_people_api
       - People__ClientId=elwark.notification.api
       - People__ClientSecret=secret

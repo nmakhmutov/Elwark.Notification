@@ -31,6 +31,7 @@ public sealed class EmailMessage
 
     public DateTime CreatedAt { get; private set; }
 
+    // ReSharper disable once UnusedMember.Local
     private EmailMessage()
     {
         Email = string.Empty;

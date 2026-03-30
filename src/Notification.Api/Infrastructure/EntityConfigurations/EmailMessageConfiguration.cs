@@ -26,7 +26,6 @@ internal sealed class EmailMessageConfiguration : IEntityTypeConfiguration<Email
 
         builder.Property(x => x.Body)
             .HasColumnName("body")
-            .HasColumnType("text")
             .IsRequired();
 
         builder.Property(x => x.IsHtml)
