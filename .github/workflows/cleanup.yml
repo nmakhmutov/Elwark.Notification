@@ -1,0 +1,72 @@
+name: сleanup
+
+on:
+  pull_request:
+    types: [ closed ]
+  delete:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup-pr-caches:
+    name: Delete PR Caches
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete caches for PR branch
+        run: gh cache delete --all --ref ${{ github.event.pull_request.head.ref }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+  cleanup-branch-caches:
+    name: Delete Branch Caches
+    if: github.event_name == 'delete' && github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete caches for deleted branch
+        run: gh cache delete --all --ref ${{ github.event.ref }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+  cleanup-stale-caches:
+    name: Delete Stale Caches
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete caches older than 1 day
+        run: |
+          CUTOFF=$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ)
+          echo "Deleting caches created before $CUTOFF"
+          
+          gh api -X GET repos/$GH_REPO/actions/caches --paginate --jq ".actions_caches[] | select(.created_at < \"$CUTOFF\") | .id" \
+            | xargs -r -I{} gh api -X DELETE repos/$GH_REPO/actions/caches/{}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+  cleanup-stale-artifacts:
+    name: Delete Stale Artifacts
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete artifacts older than 1 day
+        run: |
+          CUTOFF=$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ)
+          echo "Deleting artifacts created before $CUTOFF"
+          
+          gh api -X GET repos/$GH_REPO/actions/artifacts --paginate --jq ".artifacts[] | select(.created_at < \"$CUTOFF\") | .id" \
+            | xargs -r -I{} gh api -X DELETE repos/$GH_REPO/actions/artifacts/{}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}

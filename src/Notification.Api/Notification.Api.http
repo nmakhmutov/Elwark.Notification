@@ -9,7 +9,7 @@ Content-Type: application/x-www-form-urlencoded
 grant_type = client_credentials &
 client_id = elwark.people.api &
 client_secret = secret &
-scope = elwark.notification
+scope = notification:send
 
 > {%
 

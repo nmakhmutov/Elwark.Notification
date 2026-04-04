@@ -12,6 +12,7 @@ using Notification.Api.Infrastructure.Provider;
 using Notification.Api.Infrastructure.Repositories;
 using Notification.Api.Job;
 using Quartz;
+using Resend;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -40,11 +41,11 @@ builder.Services
     .AddOpenApi()
     .AddValidatorsFromAssemblies(assemblies);
 
-// builder.Services
-//     .AddSingleton<IEmailProvider, ResendEmailProvider>()
-//     .Configure<ResendClientOptions>(x => x.ApiToken = builder.Configuration.GetString("Resend:Key"))
-//     .AddHttpClient(nameof(ResendClient));
-//
+builder.Services
+    .AddSingleton<IEmailProvider, ResendEmailProvider>()
+    .Configure<ResendClientOptions>(x => x.ApiToken = builder.Configuration.GetString("Resend:Key"))
+    .AddHttpClient(nameof(ResendClient));
+
 // builder.Services
 //     .AddSingleton<IEmailProvider>(provider =>
 //     {

@@ -25,7 +25,7 @@ internal sealed partial class SendGridEmailProvider : IEmailProvider
         var client = new SendGridClient(httpClient, _apiKey);
 
         var msg = MailHelper.CreateSingleEmail(
-            new EmailAddress("elwarkinc@gmail.com", "Elwark"),
+            new EmailAddress("noreply@elwark.app", "Elwark"),
             new EmailAddress(message.To),
             message.Subject,
             message.IsHtml ? null : message.Body,
