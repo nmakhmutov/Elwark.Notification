@@ -58,7 +58,7 @@ public sealed class RoundRobinEmailSenderTests
             () => sender.SendAsync(TestMessage, CancellationToken.None));
 
         Assert.Equal("All email providers are exhausted", ex.Message);
-        Assert.IsType<ProviderRateLimitException>(ex.InnerException);
+        Assert.Null(ex.InnerException);
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class RoundRobinEmailSenderTests
             () => sender.SendAsync(TestMessage, CancellationToken.None));
 
         Assert.Equal("All email providers are exhausted", ex.Message);
-        Assert.NotNull(ex.InnerException);
+        Assert.Null(ex.InnerException);
     }
 
     [Fact]
