@@ -1,0 +1,194 @@
+name: notification
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/notification.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/notification.yml'
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-docker-images:
+    name: Build Docker / api
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build api image
+        uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_RETENTION_DAYS: 1
+        with:
+          context: .
+          file: src/Notification.Api/Dockerfile
+          tags: elwark/notification-api:ci
+          outputs: type=docker,dest=/tmp/notification-api.tar
+          cache-from: type=gha,scope=notification-api
+          cache-to: type=gha,scope=notification-api,mode=max
+
+      - name: Upload api image artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: docker-image-api
+          path: /tmp/notification-api.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: true
+      NUGET_XMLDOC_MODE: skip
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Build
+        run: dotnet build Elwark.Notification.slnx --configuration Release --verbosity minimal
+
+      - name: Test
+        run: dotnet test tests/Notification.Api.Tests/Notification.Api.Tests.csproj --configuration Release --no-build --no-restore --verbosity minimal --collect:"XPlat Code Coverage" --results-directory TestResults
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-unit
+          path: TestResults/**/coverage.cobertura.xml
+          if-no-files-found: error
+          retention-days: 1
+
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [ build-docker-images, unit-tests ]
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: elwark_notification
+          POSTGRES_USER: master_account
+          POSTGRES_PASSWORD: master_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U master_account -d elwark_notification"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Download API image
+        uses: actions/download-artifact@v8
+        with:
+          name: docker-image-api
+          path: /tmp/docker-images/api
+
+      - name: Load image
+        run: docker load --input /tmp/docker-images/api/notification-api.tar
+
+      - name: Start API container
+        run: |
+          docker run -d --name notification-api-smoke \
+            -p 8080:8080 \
+            --add-host host.docker.internal:host-gateway \
+            -e Kestrel__Endpoints__Http__Url=http://0.0.0.0:8080 \
+            -e ConnectionStrings__Postgresql='Host=host.docker.internal;Port=5432;Database=elwark_notification;Username=master_account;Password=master_password' \
+            -e Authentication__Authority=http://host.docker.internal:5000 \
+            -e Authentication__Audience=notification-api \
+            -e People__Host=http://host.docker.internal:5001 \
+            -e People__ClientId=elwark.notification.api \
+            -e People__ClientSecret=secret \
+            -e People__Scope=people:read \
+            -e Resend__Key=test \
+            -e Gmail__Username=test@example.com \
+            -e Gmail__Key=test \
+            elwark/notification-api:ci
+
+      - name: Wait for API health
+        run: |
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs notification-api-smoke
+          exit 1
+
+      - name: Cleanup smoke container
+        if: always()
+        run: docker rm -f notification-api-smoke || true
+
+  coverage-report:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [ unit-tests ]
+    if: ${{ !cancelled() }}
+    permissions:
+      actions: write
+    steps:
+      - name: Download coverage results
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-*
+          path: coverage-results
+          merge-multiple: true
+
+      - name: ReportGenerator
+        if: hashFiles('coverage-results/**/coverage.cobertura.xml') != ''
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.5.4
+        with:
+          reports: coverage-results/**/coverage.cobertura.xml
+          targetdir: coverage-report
+          reporttypes: HtmlInline;MarkdownSummaryGithub;Cobertura
+          assemblyfilters: -[Notification.Api.Tests]*
+          verbosity: Warning
+
+      - name: Add coverage summary to job
+        if: hashFiles('coverage-results/**/coverage.cobertura.xml') != ''
+        run: cat coverage-report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload HTML report
+        if: hashFiles('coverage-results/**/coverage.cobertura.xml') != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-report
+          path: coverage-report/
+          retention-days: 1
+
+      - name: Delete coverage artifacts
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          gh api "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" --paginate --jq '.artifacts[] | select(.name == "coverage-unit") | .id' \
+            | xargs -r -I{} gh api --method DELETE "repos/$GH_REPO/actions/artifacts/{}"

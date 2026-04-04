@@ -1,11 +1,14 @@
 <Solution>
     <Folder Name="/config/">
-        <File Path=".github/workflows/notification.api.yml"/>
         <File Path="docker-compose.yml"/>
         <File Path="docker-compose.override.yml"/>
         <File Path=".editorconfig"/>
         <File Path="Directory.Build.props"/>
         <File Path="Directory.Packages.props"/>
+    </Folder>
+    <Folder Name="/github/">
+        <File Path=".github/workflows/cleanup.yml"/>
+        <File Path=".github/workflows/notification.yml"/>
     </Folder>
     <Folder Name="/src/">
         <Project Path="src/Notification.Api/Notification.Api.csproj"/>
